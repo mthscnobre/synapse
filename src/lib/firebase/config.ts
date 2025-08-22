@@ -1,7 +1,8 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
+// src/lib/firebase/config.ts
 
-// Your web app's Firebase configuration
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth"; // Importe o getAuth
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -11,8 +12,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-// O getApps verifica se uma instância já foi inicializada para evitar re-iniciação
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-export default app;
+// Crie e exporte a instância de autenticação
+const auth = getAuth(app);
+
+export { app, auth };
