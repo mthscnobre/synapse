@@ -1,11 +1,10 @@
-// src/app/layout.tsx - CÓDIGO ATUALIZADO
-
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
-import { ThemeProvider } from "@/components/ThemeProvider"; // O nome do nosso arquivo é ThemeProvider
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,6 +39,7 @@ export default function RootLayout({
           <AuthProvider>
             <Header />
             <main>{children}</main>
+            <Toaster richColors position="top-right" />
           </AuthProvider>
         </ThemeProvider>
       </body>

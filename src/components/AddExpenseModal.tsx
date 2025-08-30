@@ -47,7 +47,9 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
+import { toast } from "sonner";
 
+// Lista de cartões fixa (provisória para o MVP)
 const cards = [
   { id: "nubank-final-1234", name: "Nubank Final 1234" },
   { id: "inter-final-5678", name: "Inter Final 5678" },
@@ -66,6 +68,7 @@ export default function AddExpenseModal({
 }: AddExpenseModalProps) {
   const { user } = useAuth();
 
+  // Estados do formulário
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -77,10 +80,12 @@ export default function AddExpenseModal({
   const [cardId, setCardId] = useState<string | undefined>();
   const [isSaving, setIsSaving] = useState(false);
 
+  // Estados para o Combobox de Categoria
   const [categories, setCategories] = useState<Category[]>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Ouve as categorias do usuário em tempo real
   useEffect(() => {
     if (user) {
       const unsubscribe = listenToCategories(user.uid, setCategories);
@@ -88,6 +93,7 @@ export default function AddExpenseModal({
     }
   }, [user]);
 
+  // Preenche ou limpa o formulário dependendo do modo (Adicionar vs. Editar)
   useEffect(() => {
     if (isOpen) {
       if (expenseToEdit) {
@@ -113,19 +119,27 @@ export default function AddExpenseModal({
 
   const handleSave = async () => {
     if (!amount || !category || !user || !date || !paymentMethod) {
-      alert("Por favor, preencha todos os campos obrigatórios.");
+      toast.error("Campos obrigatórios", {
+        description:
+          "Por favor, preencha o valor, a categoria, a data e a forma de pagamento.",
+      });
       return;
     }
     if (paymentMethod === "Crédito" && !cardId) {
-      alert("Por favor, selecione um cartão de crédito.");
+      toast.error("Campo obrigatório", {
+        description: "Por favor, selecione um cartão de crédito.",
+      });
       return;
     }
 
     setIsSaving(true);
 
+    let success = false;
+    const formattedAmount = parseFloat(amount);
+
     if (expenseToEdit) {
       const updatedData = {
-        amount: parseFloat(amount),
+        amount: formattedAmount,
         description: description,
         category: category,
         location: location,
@@ -133,10 +147,10 @@ export default function AddExpenseModal({
         paymentMethod: paymentMethod,
         cardId: paymentMethod === "Crédito" ? cardId : "",
       };
-      await updateExpense(expenseToEdit.id, updatedData);
+      success = await updateExpense(expenseToEdit.id, updatedData);
     } else {
       const expenseData: Omit<Expense, "id"> = {
-        amount: parseFloat(amount),
+        amount: formattedAmount,
         description: description,
         category: category,
         location: location,
@@ -145,11 +159,25 @@ export default function AddExpenseModal({
         userId: user.uid,
         createdAt: Timestamp.fromDate(date),
       };
-      await addExpense(expenseData);
+      const docId = await addExpense(expenseData);
+      success = !!docId;
     }
 
     setIsSaving(false);
-    onClose();
+
+    if (success) {
+      toast.success("Sucesso!", {
+        description: `Seu gasto de ${formattedAmount.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })} foi salvo.`,
+      });
+      onClose();
+    } else {
+      toast.error("Erro ao salvar", {
+        description: "Não foi possível salvar a despesa. Tente novamente.",
+      });
+    }
   };
 
   const handleCreateCategory = async (categoryName: string) => {
@@ -178,7 +206,7 @@ export default function AddExpenseModal({
             {expenseToEdit ? "Editar Gasto" : "Adicionar Novo Gasto"}
           </DialogTitle>
           <DialogDescription>
-            Atualize os detalhes do seu gasto. Clique em salvar quando terminar.
+            Insira os detalhes do seu gasto. Clique em salvar quando terminar.
           </DialogDescription>
         </DialogHeader>
 
@@ -374,7 +402,7 @@ export default function AddExpenseModal({
             Cancelar
           </Button>
           <Button type="submit" form="expense-form" disabled={isSaving}>
-            {isSaving ? "Salvando..." : "Salvar Alterações"}
+            {isSaving ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
