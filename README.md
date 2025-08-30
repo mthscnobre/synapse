@@ -1,6 +1,5 @@
 <div align="center">
   <img src="/public/Logo-dark.svg" alt="Synapse Logo" width="250px" />
-  <h1 align="center">SYNAPSE</h1>
 </div>
 
 <p align="center">
