@@ -10,8 +10,9 @@ import {
   deleteDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "./config";
+import { getFirebaseDb } from "./config";
 
+// --- INTERFACES ---
 export interface Expense {
   id: string;
   amount: number;
@@ -33,6 +34,7 @@ export interface Category {
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
 
 export async function addExpense(data: Omit<Expense, "id">) {
+  const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "expenses"), data);
     console.log("Documento escrito com ID: ", docRef.id);
@@ -47,6 +49,7 @@ export async function updateExpense(
   expenseId: string,
   data: Partial<Omit<Expense, "id" | "userId">>
 ) {
+  const db = getFirebaseDb();
   try {
     const expenseRef = doc(db, "expenses", expenseId);
     await updateDoc(expenseRef, data);
@@ -59,6 +62,7 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(expenseId: string) {
+  const db = getFirebaseDb();
   try {
     const expenseRef = doc(db, "expenses", expenseId);
     await deleteDoc(expenseRef);
@@ -74,6 +78,7 @@ export function listenToExpenses(
   userId: string,
   callback: (expenses: Expense[]) => void
 ) {
+  const db = getFirebaseDb();
   const expensesCollection = collection(db, "expenses");
   const q = query(
     expensesCollection,
@@ -93,6 +98,7 @@ export function listenToExpenses(
 // --- FUNÇÕES DE CATEGORIAS (CATEGORIES) ---
 
 export async function addCategory(data: Omit<Category, "id">) {
+  const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "categories"), data);
     console.log("Categoria adicionada com ID: ", docRef.id);
@@ -107,6 +113,7 @@ export function listenToCategories(
   userId: string,
   callback: (categories: Category[]) => void
 ) {
+  const db = getFirebaseDb();
   const categoriesCollection = collection(db, "categories");
   const q = query(
     categoriesCollection,

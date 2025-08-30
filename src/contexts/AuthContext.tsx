@@ -1,5 +1,3 @@
-// src/contexts/AuthContext.tsx
-
 "use client";
 
 import {
@@ -10,7 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
+import { getFirebaseAuth } from "@/lib/firebase/config"; // 1. Importe a nova FUNÇÃO
 
 // Define o tipo de dados que o contexto irá fornecer
 interface AuthContextType {
@@ -30,6 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const auth = getFirebaseAuth(); // 2. Chame a função para obter a instância de Auth
+
     // O onAuthStateChanged é um "ouvinte" do Firebase que nos diz
     // em tempo real se o usuário está logado ou não.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = { user, loading };
 
-  // Se estiver carregando, não mostra nada para evitar "piscar" a tela
+  // Enquanto o estado de autenticação está sendo verificado, não renderiza a aplicação
   if (loading) {
     return null; // Ou um componente de Spinner/Loading global
   }
