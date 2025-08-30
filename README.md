@@ -1,7 +1,7 @@
 <div align="center">
   <img src="/public/Logo-dark.svg" alt="Synapse Logo" width="250px" />
 </div>
-
+<br />
 <p align="center">
   <strong>A sinapse entre você e suas finanças.</strong>
   <br />
