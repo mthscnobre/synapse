@@ -1,7 +1,8 @@
 // src/lib/firebase/config.ts
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth"; // Importe o getAuth
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // 1. Importe o getFirestore
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,7 +15,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Crie e exporte a instância de autenticação
 const auth = getAuth(app);
+const db = getFirestore(app); // 2. Crie e exporte a instância do banco de dados
 
-export { app, auth };
+export { app, auth, db }; // 3. Adicione 'db' aos exports
