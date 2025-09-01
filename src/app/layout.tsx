@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // Importe o Viewport
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
@@ -17,9 +17,19 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+// Metadados principais da aplicação
 export const metadata: Metadata = {
   title: "Synapse",
   description: "A sinapse entre você e suas finanças.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg", // O caminho agora está correto por causa da pasta /public
+  },
+};
+
+// Nova exportação para configurações da viewport (incluindo theme-color)
+export const viewport: Viewport = {
+  themeColor: "#18181b",
 };
 
 export default function RootLayout({

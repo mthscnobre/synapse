@@ -1,0 +1,23 @@
+{
+  "name": "SYNAPSE",
+  "short_name": "SYNAPSE",
+  "description": "A sinapse entre você e suas finanças. Um app de apoio para mentes com TDAH.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#18181b",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
