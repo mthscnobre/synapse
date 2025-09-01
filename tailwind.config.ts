@@ -26,6 +26,8 @@ const config = {
         background: "oklch(var(--background))",
         foreground: "oklch(var(--foreground))",
         cabecalho: "oklch(var(--cabecalho-fundo))",
+        btDespesa: "oklch(var(--btDespesa))",
+        btDespesaForeground: "oklch(var(--btDespesaForeground))",
         primary: {
           DEFAULT: "oklch(var(--primary))",
           foreground: "oklch(var(--primary-foreground))",

@@ -39,6 +39,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-cabecalho-fundo: var(--cabecalho-fundo);
+  --color-btDespesa: var(--btDespesa);
+  --color-btDespesa-foreground: var(--btDespesaForeground);
 }
 
 :root {
@@ -75,6 +77,8 @@
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
   --cabecalho-fundo: oklch(0.37 0.04 257);
+  --btDespesa: oklch(0.7 0.19 48);
+  --btDespesaForeground: oklch(0.92 0.004 286.32);
 }
 
 .dark {
@@ -110,6 +114,8 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
   --cabecalho-fundo: oklch(0.14 0 286);
+  --btDespesa: oklch(0.7 0.19 48);
+  --btDespesaForeground: oklch(0.92 0.004 286.32);
 }
 
 @layer base {

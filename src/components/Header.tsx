@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { LogOut } from "lucide-react"; // Ícone para sair
 
 export default function Header() {
   const { user } = useAuth();
@@ -30,16 +31,16 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-cabecalho-fundo py-4 px-8">
-      <div className="mx-auto max-w-7xl flex justify-between items-center">
-        <Logo variant="inverse" />
+    <header className="w-full bg-cabecalho-fundo py-4 px-8 border-b">
+      <div className="mx-auto flex max-w-7xl items-center justify-between">
+        <Logo />
         <div className="flex items-center gap-4">
           <ThemeSwitcher />
           {user ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-900 dark:focus:ring-offset-zinc-950">
+              <DropdownMenuTrigger className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
                 {user.photoURL ? (
-                  <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                  <div className="relative h-8 w-8 overflow-hidden rounded-full">
                     <Image
                       src={user.photoURL}
                       alt={"Avatar do usuário"}
@@ -48,31 +49,34 @@ export default function Header() {
                     />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-700 dark:bg-zinc-700 flex items-center justify-center text-gray-200 font-bold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground">
                     {user.displayName?.charAt(0).toUpperCase()}
                   </div>
                 )}
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48" align="end">
+              <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel>
-                  <p className="text-sm">Logado como</p>
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {user.displayName || user.email}
+                  <p className="text-sm font-medium">
+                    {user.displayName || "Usuário"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user.email}
                   </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="cursor-pointer"
+                  className="cursor-pointer text-destructive focus:text-destructive"
                 >
-                  Sair
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <Link
               href="/login"
-              className="px-3 py-1.5 text-sm font-semibold rounded-md text-gray-200 hover:bg-slate-700 dark:hover:bg-zinc-700"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Entrar
             </Link>

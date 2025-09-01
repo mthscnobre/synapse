@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { Expense, deleteExpense } from "@/lib/firebase/firestore";
-import {
-  Card,
-  CardTitle, // Importamos apenas o que realmente usamos
-  CardDescription, // Importamos apenas o que realmente usamos
-} from "@/components/ui/card";
+import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Timestamp } from "firebase/firestore";
 import { MapPin, MoreHorizontal, Trash2, Edit } from "lucide-react";
+import { toast } from "sonner"; // Adicionado para feedback de exclusão
 
 interface ExpensesListProps {
   expenses: Expense[];
@@ -36,7 +33,12 @@ export default function ExpensesList({ expenses, onEdit }: ExpensesListProps) {
 
   const handleDelete = async () => {
     if (expenseToDelete) {
-      await deleteExpense(expenseToDelete.id);
+      const success = await deleteExpense(expenseToDelete.id);
+      if (success) {
+        toast.success("Gasto excluído com sucesso!");
+      } else {
+        toast.error("Erro ao excluir gasto.");
+      }
       setExpenseToDelete(null);
     }
   };
@@ -109,8 +111,7 @@ export default function ExpensesList({ expenses, onEdit }: ExpensesListProps) {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setExpenseToDelete(expense)}
-                    // Cores atualizadas para melhor legibilidade no tema escuro
-                    className="text-red-400 cursor-pointer focus:text-red-400 hover:bg-red-200 hover:text-red-700"
+                    className="text-destructive focus:text-destructive cursor-pointer"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     <span>Excluir</span>
@@ -144,7 +145,10 @@ export default function ExpensesList({ expenses, onEdit }: ExpensesListProps) {
             <AlertDialogCancel onClick={() => setExpenseToDelete(null)}>
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-btDespesa-foreground hover:bg-destructive/90"
+            >
               Confirmar
             </AlertDialogAction>
           </AlertDialogFooter>
