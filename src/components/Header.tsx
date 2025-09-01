@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { LogOut } from "lucide-react"; // Ícone para sair
+import { LogOut, CreditCard } from "lucide-react"; // Importe o ícone do cartão
 
 export default function Header() {
   const { user } = useAuth();
@@ -63,6 +63,16 @@ export default function Header() {
                     {user.email}
                   </p>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  asChild // Permite que o Link dentro do item funcione corretamente
+                  className="cursor-pointer"
+                >
+                  <Link href="/cards">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Meus Cartões</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}

@@ -11,6 +11,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { getFirebaseDb } from "./config";
+import { getStorage, ref, deleteObject } from "firebase/storage";
 
 // --- INTERFACES ---
 export interface Expense {
@@ -29,6 +30,17 @@ export interface Category {
   id: string;
   name: string;
   userId: string;
+}
+
+export interface Card {
+  id: string;
+  name: string;
+  lastFourDigits: string;
+  closingDay: number;
+  dueDay: number;
+  userId: string;
+  logoUrl?: string; // Campo opcional para a URL da imagem
+  storagePath?: string; // Campo opcional para o caminho no Storage
 }
 
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
@@ -126,6 +138,86 @@ export function listenToCategories(
       categories.push({ id: doc.id, ...doc.data() } as Category);
     });
     callback(categories);
+  });
+  return unsubscribe;
+}
+
+// --- FUNÇÕES DE CARTÕES (CARDS) ---
+
+export async function addCard(data: Omit<Card, "id">) {
+  const db = getFirebaseDb();
+  try {
+    const docRef = await addDoc(collection(db, "cards"), data);
+    console.log("Cartão adicionado com ID: ", docRef.id);
+    return { id: docRef.id, ...data };
+  } catch (e) {
+    console.error("Erro ao adicionar cartão: ", e);
+    return null;
+  }
+}
+
+export async function updateCard(
+  cardId: string,
+  data: Partial<Omit<Card, "id" | "userId">>
+) {
+  const db = getFirebaseDb();
+  try {
+    const cardRef = doc(db, "cards", cardId);
+    await updateDoc(cardRef, data);
+    console.log("Cartão atualizado com ID: ", cardId);
+    return true;
+  } catch (e) {
+    console.error("Erro ao atualizar cartão: ", e);
+    return false;
+  }
+}
+
+export async function deleteCard(cardId: string, storagePath?: string) {
+  const db = getFirebaseDb();
+
+  // Se houver um caminho de imagem, delete-a primeiro
+  if (storagePath) {
+    const storage = getStorage();
+    const imageRef = ref(storage, storagePath);
+    try {
+      await deleteObject(imageRef);
+      console.log("Imagem do cartão deletada do Storage.");
+    } catch (error) {
+      console.error("Erro ao deletar imagem do Storage: ", error);
+      // Decide se quer parar a exclusão ou apenas logar o erro.
+      // Por enquanto, vamos apenas logar e continuar.
+    }
+  }
+
+  // Agora delete o documento do Firestore
+  try {
+    const cardRef = doc(db, "cards", cardId);
+    await deleteDoc(cardRef);
+    console.log("Cartão deletado com ID: ", cardId);
+    return true;
+  } catch (e) {
+    console.error("Erro ao deletar cartão do Firestore: ", e);
+    return false;
+  }
+}
+
+export function listenToCards(
+  userId: string,
+  callback: (cards: Card[]) => void
+) {
+  const db = getFirebaseDb();
+  const cardsCollection = collection(db, "cards");
+  const q = query(
+    cardsCollection,
+    where("userId", "==", userId),
+    orderBy("name")
+  );
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const cards: Card[] = [];
+    querySnapshot.forEach((doc) => {
+      cards.push({ id: doc.id, ...doc.data() } as Card);
+    });
+    callback(cards);
   });
   return unsubscribe;
 }
