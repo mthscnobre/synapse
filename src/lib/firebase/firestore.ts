@@ -10,6 +10,7 @@ import {
   deleteDoc,
   updateDoc,
 } from "firebase/firestore";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { getFirebaseDb } from "./config";
 import { getStorage, ref, deleteObject } from "firebase/storage";
 
@@ -30,6 +31,8 @@ export interface Category {
   id: string;
   name: string;
   userId: string;
+  color?: string; // Campo opcional para a cor
+  icon?: string; // Campo opcional para o ícone
 }
 
 export interface Card {
@@ -39,8 +42,8 @@ export interface Card {
   closingDay: number;
   dueDay: number;
   userId: string;
-  logoUrl?: string; // Campo opcional para a URL da imagem
-  storagePath?: string; // Campo opcional para o caminho no Storage
+  logoUrl?: string;
+  storagePath?: string;
 }
 
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
@@ -49,7 +52,6 @@ export async function addExpense(data: Omit<Expense, "id">) {
   const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "expenses"), data);
-    console.log("Documento escrito com ID: ", docRef.id);
     return docRef.id;
   } catch (e) {
     console.error("Erro ao adicionar documento: ", e);
@@ -65,7 +67,6 @@ export async function updateExpense(
   try {
     const expenseRef = doc(db, "expenses", expenseId);
     await updateDoc(expenseRef, data);
-    console.log("Documento atualizado com ID: ", expenseId);
     return true;
   } catch (e) {
     console.error("Erro ao atualizar documento: ", e);
@@ -78,7 +79,6 @@ export async function deleteExpense(expenseId: string) {
   try {
     const expenseRef = doc(db, "expenses", expenseId);
     await deleteDoc(expenseRef);
-    console.log("Documento deletado com ID: ", expenseId);
     return true;
   } catch (e) {
     console.error("Erro ao deletar documento: ", e);
@@ -88,15 +88,23 @@ export async function deleteExpense(expenseId: string) {
 
 export function listenToExpenses(
   userId: string,
+  month: Date,
   callback: (expenses: Expense[]) => void
 ) {
   const db = getFirebaseDb();
   const expensesCollection = collection(db, "expenses");
+
+  const start = startOfMonth(month);
+  const end = endOfMonth(month);
+
   const q = query(
     expensesCollection,
     where("userId", "==", userId),
+    where("createdAt", ">=", start),
+    where("createdAt", "<=", end),
     orderBy("createdAt", "desc")
   );
+
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const expenses: Expense[] = [];
     querySnapshot.forEach((doc) => {
@@ -113,7 +121,6 @@ export async function addCategory(data: Omit<Category, "id">) {
   const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "categories"), data);
-    console.log("Categoria adicionada com ID: ", docRef.id);
     return { id: docRef.id, ...data };
   } catch (e) {
     console.error("Erro ao adicionar categoria: ", e);
@@ -148,7 +155,6 @@ export async function addCard(data: Omit<Card, "id">) {
   const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "cards"), data);
-    console.log("Cartão adicionado com ID: ", docRef.id);
     return { id: docRef.id, ...data };
   } catch (e) {
     console.error("Erro ao adicionar cartão: ", e);
@@ -164,7 +170,6 @@ export async function updateCard(
   try {
     const cardRef = doc(db, "cards", cardId);
     await updateDoc(cardRef, data);
-    console.log("Cartão atualizado com ID: ", cardId);
     return true;
   } catch (e) {
     console.error("Erro ao atualizar cartão: ", e);
@@ -175,25 +180,19 @@ export async function updateCard(
 export async function deleteCard(cardId: string, storagePath?: string) {
   const db = getFirebaseDb();
 
-  // Se houver um caminho de imagem, delete-a primeiro
   if (storagePath) {
     const storage = getStorage();
     const imageRef = ref(storage, storagePath);
     try {
       await deleteObject(imageRef);
-      console.log("Imagem do cartão deletada do Storage.");
     } catch (error) {
       console.error("Erro ao deletar imagem do Storage: ", error);
-      // Decide se quer parar a exclusão ou apenas logar o erro.
-      // Por enquanto, vamos apenas logar e continuar.
     }
   }
 
-  // Agora delete o documento do Firestore
   try {
     const cardRef = doc(db, "cards", cardId);
     await deleteDoc(cardRef);
-    console.log("Cartão deletado com ID: ", cardId);
     return true;
   } catch (e) {
     console.error("Erro ao deletar cartão do Firestore: ", e);

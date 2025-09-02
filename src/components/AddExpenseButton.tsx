@@ -10,7 +10,7 @@ export default function AddExpenseButton({ onOpen }: AddExpenseButtonProps) {
   return (
     <button
       onClick={onOpen}
-      className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-btDespesa text-primary-foreground shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-btDespesa focus:ring-offset-2 dark:focus:ring-offset-background"
+      className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-btDespesa text-btDespesaForeground shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-btDespesa focus:ring-offset-2 dark:focus:ring-offset-background z-50"
       aria-label="Adicionar novo gasto"
     >
       <Plus size={28} />

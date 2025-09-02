@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContext";
+// Correcção aqui: caminho completo para o ficheiro de configuração do firebase
 import {
   Expense,
   addExpense,
@@ -41,6 +42,8 @@ import {
   listenToCategories,
   addCategory,
   Category,
+  Card,
+  listenToCards,
 } from "@/lib/firebase/firestore";
 import { ChevronsUpDown, Check, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,11 +52,30 @@ import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
 import { toast } from "sonner";
 
-// Lista de cartões fixa (provisória para o MVP)
-const cards = [
-  { id: "nubank-final-1234", name: "Nubank Final 1234" },
-  { id: "inter-final-5678", name: "Inter Final 5678" },
+// Paleta de cores para novas categorias
+const categoryColors = [
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
 ];
+
+const getRandomColor = () => {
+  return categoryColors[Math.floor(Math.random() * categoryColors.length)];
+};
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -68,7 +90,6 @@ export default function AddExpenseModal({
 }: AddExpenseModalProps) {
   const { user } = useAuth();
 
-  // Estados do formulário
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -80,20 +101,24 @@ export default function AddExpenseModal({
   const [cardId, setCardId] = useState<string | undefined>();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para o Combobox de Categoria
   const [categories, setCategories] = useState<Category[]>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Ouve as categorias do usuário em tempo real
+  const [cards, setCards] = useState<Card[]>([]);
+
   useEffect(() => {
     if (user) {
-      const unsubscribe = listenToCategories(user.uid, setCategories);
-      return () => unsubscribe();
+      const unsubscribeCategories = listenToCategories(user.uid, setCategories);
+      const unsubscribeCards = listenToCards(user.uid, setCards);
+
+      return () => {
+        unsubscribeCategories();
+        unsubscribeCards();
+      };
     }
   }, [user]);
 
-  // Preenche ou limpa o formulário dependendo do modo (Adicionar vs. Editar)
   useEffect(() => {
     if (isOpen) {
       if (expenseToEdit) {
@@ -167,25 +192,27 @@ export default function AddExpenseModal({
 
     if (success) {
       toast.success("Sucesso!", {
-        description: `Seu gasto de ${formattedAmount.toLocaleString("pt-BR", {
+        description: `O seu gasto de ${formattedAmount.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
-        })} foi salvo.`,
+        })} foi guardado.`,
       });
       onClose();
     } else {
-      toast.error("Erro ao salvar", {
-        description: "Não foi possível salvar a despesa. Tente novamente.",
+      toast.error("Erro ao guardar", {
+        description: "Não foi possível guardar a despesa. Tente novamente.",
       });
     }
   };
 
   const handleCreateCategory = async (categoryName: string) => {
     if (!user || !categoryName.trim()) return;
-    const newCategory = await addCategory({
+    const newCategoryData = {
       name: categoryName.trim(),
       userId: user.uid,
-    });
+      color: getRandomColor(),
+    };
+    const newCategory = await addCategory(newCategoryData);
     if (newCategory) {
       setCategory(newCategory.name);
       setOpenCombobox(false);
@@ -206,7 +233,7 @@ export default function AddExpenseModal({
             {expenseToEdit ? "Editar Gasto" : "Adicionar Novo Gasto"}
           </DialogTitle>
           <DialogDescription>
-            Insira os detalhes do seu gasto. Clique em salvar quando terminar.
+            Insira os detalhes do seu gasto. Clique em guardar quando terminar.
           </DialogDescription>
         </DialogHeader>
 
@@ -271,7 +298,7 @@ export default function AddExpenseModal({
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
                   <CommandInput
-                    placeholder="Buscar ou criar categoria..."
+                    placeholder="Procurar ou criar categoria..."
                     value={searchQuery}
                     onValueChange={setSearchQuery}
                   />
@@ -386,11 +413,17 @@ export default function AddExpenseModal({
                   <SelectValue placeholder="Selecione um cartão" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cards.map((card) => (
-                    <SelectItem key={card.id} value={card.id}>
-                      {card.name}
-                    </SelectItem>
-                  ))}
+                  {cards.length > 0 ? (
+                    cards.map((card) => (
+                      <SelectItem key={card.id} value={card.id}>
+                        {card.name} (•••• {card.lastFourDigits})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhum cartão registado.
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -402,7 +435,7 @@ export default function AddExpenseModal({
             Cancelar
           </Button>
           <Button type="submit" form="expense-form" disabled={isSaving}>
-            {isSaving ? "Salvando..." : "Salvar"}
+            {isSaving ? "A guardar..." : "Guardar"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,102 +2,133 @@
 
 import { useState, useEffect, useMemo } from "react";
 import AuthGuard from "@/components/AuthGuard";
-import AddExpenseButton from "@/components/AddExpenseButton";
-import { useAuth } from "@/contexts/AuthContext";
-import { Expense, listenToExpenses } from "@/lib/firebase/firestore";
+import AddExpenseModal from "@/components/AddExpenseModal"; // Correcção aqui
 import ExpensesList from "@/components/ExpensesList";
 import DashboardSummary from "@/components/DashboardSummary";
-import AddExpenseModal from "@/components/AddExpenseModal";
+import AddExpenseButton from "@/components/AddExpenseButton";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Expense,
+  listenToExpenses,
+  listenToCategories,
+  Category,
+  listenToCards,
+  Card,
+} from "@/lib/firebase/firestore";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { addMonths, subMonths, format, startOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function HomePage() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-
-  // Estado para controlar o modal de Adicionar/Editar
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
 
   useEffect(() => {
     if (user) {
-      const unsubscribe = listenToExpenses(user.uid, (newExpenses) => {
-        setExpenses(newExpenses);
-      });
-      return () => unsubscribe();
-    }
-  }, [user]);
+      const unsubscribeExpenses = listenToExpenses(
+        user.uid,
+        currentMonth,
+        setExpenses
+      );
+      const unsubscribeCategories = listenToCategories(user.uid, setCategories);
+      const unsubscribeCards = listenToCards(user.uid, setCards);
 
-  // Função para abrir o modal em modo de EDIÇÃO
+      return () => {
+        unsubscribeExpenses();
+        unsubscribeCategories();
+        unsubscribeCards();
+      };
+    }
+  }, [user, currentMonth]);
+
+  const handleOpenModal = () => {
+    setExpenseToEdit(null);
+    setIsModalOpen(true);
+  };
+
   const handleEditExpense = (expense: Expense) => {
     setExpenseToEdit(expense);
     setIsModalOpen(true);
   };
 
-  // Função para abrir o modal em modo de ADIÇÃO
-  const handleAddExpense = () => {
-    setExpenseToEdit(null); // Garante que não estamos em modo de edição
-    setIsModalOpen(true);
-  };
-
-  // Função para fechar o modal e limpar o estado
   const closeModal = () => {
     setIsModalOpen(false);
     setExpenseToEdit(null);
   };
 
-  const monthlySummary = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+  const goToPreviousMonth = () => {
+    setCurrentMonth((prev) => subMonths(prev, 1));
+  };
 
-    const currentMonthExpenses = expenses.filter((expense) => {
-      const expenseDate = expense.createdAt.toDate();
-      return (
-        expenseDate.getMonth() === currentMonth &&
-        expenseDate.getFullYear() === currentYear
-      );
-    });
+  const goToNextMonth = () => {
+    setCurrentMonth((prev) => addMonths(prev, 1));
+  };
 
-    const total = currentMonthExpenses.reduce(
-      (sum, expense) => sum + expense.amount,
-      0
-    );
+  const formattedMonth = useMemo(
+    () => format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR }),
+    [currentMonth]
+  );
 
-    return {
-      total: total,
-      numberOfTransactions: currentMonthExpenses.length,
-    };
-  }, [expenses]);
+  const monthlyTotal = useMemo(
+    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses]
+  );
 
   return (
     <AuthGuard>
-      <section className="p-8 max-w-4xl mx-auto">
+      <section className="p-4 md:p-8 max-w-4xl mx-auto">
         <div className="text-left mb-8">
-          <h2 className="font-heading text-4xl font-bold text-foreground">
+          <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">
             Dashboard
           </h2>
-          <p className="mt-2 text-muted-foreground">
-            Sua vida financeira em um piscar de olhos.
+          <p className="mt-1 md:mt-2 text-muted-foreground">
+            A sua vida financeira num piscar de olhos.
           </p>
         </div>
 
         <DashboardSummary
-          monthlyTotal={monthlySummary.total}
-          numberOfTransactions={monthlySummary.numberOfTransactions}
+          monthlyTotal={monthlyTotal}
+          numberOfTransactions={expenses.length}
         />
 
-        <h3 className="font-heading text-2xl font-bold text-foreground mt-12 mb-4">
-          Histórico de Gastos
-        </h3>
-        <ExpensesList expenses={expenses} onEdit={handleEditExpense} />
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-heading text-2xl font-bold text-foreground">
+            Histórico de Gastos
+          </h3>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-semibold capitalize text-center w-32">
+              {formattedMonth}
+            </span>
+            <Button variant="outline" size="icon" onClick={goToNextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-        <AddExpenseButton onOpen={handleAddExpense} />
-
-        <AddExpenseModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          expenseToEdit={expenseToEdit}
+        <ExpensesList
+          expenses={expenses}
+          onEdit={handleEditExpense}
+          categories={categories}
+          cards={cards}
         />
       </section>
+
+      <AddExpenseButton onOpen={handleOpenModal} />
+
+      <AddExpenseModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        expenseToEdit={expenseToEdit}
+      />
     </AuthGuard>
   );
 }
