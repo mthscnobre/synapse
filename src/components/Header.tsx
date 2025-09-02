@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { LogOut, CreditCard } from "lucide-react"; // Importe o ícone do cartão
+import { LogOut, CreditCard, LayoutGrid } from "lucide-react"; // Importe o ícone LayoutGrid
 
 export default function Header() {
   const { user } = useAuth();
@@ -64,13 +64,17 @@ export default function Header() {
                   </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  asChild // Permite que o Link dentro do item funcione corretamente
-                  className="cursor-pointer"
-                >
+                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/cards">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Meus Cartões</span>
+                  </Link>
+                </DropdownMenuItem>
+                {/* NOVO LINK PARA CATEGORIAS */}
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/categories">
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    <span>Minhas Categorias</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

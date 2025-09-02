@@ -31,8 +31,8 @@ export interface Category {
   id: string;
   name: string;
   userId: string;
-  color?: string; // Campo opcional para a cor
-  icon?: string; // Campo opcional para o ícone
+  color?: string;
+  icon?: string;
 }
 
 export interface Card {
@@ -125,6 +125,35 @@ export async function addCategory(data: Omit<Category, "id">) {
   } catch (e) {
     console.error("Erro ao adicionar categoria: ", e);
     return null;
+  }
+}
+
+// NOVA FUNÇÃO para atualizar uma categoria
+export async function updateCategory(
+  categoryId: string,
+  data: Partial<Omit<Category, "id" | "userId">>
+) {
+  const db = getFirebaseDb();
+  try {
+    const categoryRef = doc(db, "categories", categoryId);
+    await updateDoc(categoryRef, data);
+    return true;
+  } catch (e) {
+    console.error("Erro ao atualizar categoria: ", e);
+    return false;
+  }
+}
+
+// NOVA FUNÇÃO para deletar uma categoria
+export async function deleteCategory(categoryId: string) {
+  const db = getFirebaseDb();
+  try {
+    const categoryRef = doc(db, "categories", categoryId);
+    await deleteDoc(categoryRef);
+    return true;
+  } catch (e) {
+    console.error("Erro ao deletar categoria: ", e);
+    return false;
   }
 }
 
