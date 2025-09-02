@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { LogOut, CreditCard, LayoutGrid } from "lucide-react"; // Importe o ícone LayoutGrid
+import { LogOut, CreditCard, LayoutGrid, TrendingUp } from "lucide-react";
 
 export default function Header() {
   const { user } = useAuth();
@@ -33,7 +33,7 @@ export default function Header() {
   return (
     <header className="w-full bg-cabecalho-fundo py-4 px-8 border-b">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
-        <Logo />
+        <Logo variant="inverse" />
         <div className="flex items-center gap-4">
           <ThemeSwitcher />
           {user ? (
@@ -65,12 +65,17 @@ export default function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/incomes">
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    <span>Minhas Entradas</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/cards">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Meus Cartões</span>
                   </Link>
                 </DropdownMenuItem>
-                {/* NOVO LINK PARA CATEGORIAS */}
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/categories">
                     <LayoutGrid className="mr-2 h-4 w-4" />

@@ -46,6 +46,15 @@ export interface Card {
   storagePath?: string;
 }
 
+export interface Income {
+  id: string;
+  amount: number;
+  source: string;
+  payer?: string; // NOVO CAMPO ADICIONADO
+  createdAt: Timestamp;
+  userId: string;
+}
+
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
 
 export async function addExpense(data: Omit<Expense, "id">) {
@@ -128,7 +137,6 @@ export async function addCategory(data: Omit<Category, "id">) {
   }
 }
 
-// NOVA FUNÇÃO para atualizar uma categoria
 export async function updateCategory(
   categoryId: string,
   data: Partial<Omit<Category, "id" | "userId">>
@@ -144,7 +152,6 @@ export async function updateCategory(
   }
 }
 
-// NOVA FUNÇÃO para deletar uma categoria
 export async function deleteCategory(categoryId: string) {
   const db = getFirebaseDb();
   try {
@@ -246,6 +253,75 @@ export function listenToCards(
       cards.push({ id: doc.id, ...doc.data() } as Card);
     });
     callback(cards);
+  });
+  return unsubscribe;
+}
+
+// --- FUNÇÕES DE ENTRADAS (INCOME) ---
+
+export async function addIncome(data: Omit<Income, "id">) {
+  const db = getFirebaseDb();
+  try {
+    const docRef = await addDoc(collection(db, "incomes"), data);
+    return { id: docRef.id, ...data };
+  } catch (e) {
+    console.error("Erro ao adicionar entrada: ", e);
+    return null;
+  }
+}
+
+export async function updateIncome(
+  incomeId: string,
+  data: Partial<Omit<Income, "id" | "userId">>
+) {
+  const db = getFirebaseDb();
+  try {
+    const incomeRef = doc(db, "incomes", incomeId);
+    await updateDoc(incomeRef, data);
+    return true;
+  } catch (e) {
+    console.error("Erro ao atualizar entrada: ", e);
+    return false;
+  }
+}
+
+export async function deleteIncome(incomeId: string) {
+  const db = getFirebaseDb();
+  try {
+    const incomeRef = doc(db, "incomes", incomeId);
+    await deleteDoc(incomeRef);
+    return true;
+  } catch (e) {
+    console.error("Erro ao deletar entrada: ", e);
+    return false;
+  }
+}
+
+export function listenToIncomes(
+  userId: string,
+  month: Date,
+  callback: (incomes: Income[]) => void
+) {
+  const db = getFirebaseDb();
+  const incomesCollection = collection(db, "incomes");
+
+  const start = startOfMonth(month);
+  const end = endOfMonth(month);
+
+  const q = query(
+    incomesCollection,
+    where("userId", "==", userId),
+    where("createdAt", ">=", start),
+    where("createdAt", "<=", end),
+    orderBy("createdAt", "desc")
+  );
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const incomes: Income[] = [];
+    querySnapshot.forEach((doc) => {
+      incomes.push({ id: doc.id, ...doc.data() } as Income);
+    });
+    callback(incomes);
   });
   return unsubscribe;
 }
