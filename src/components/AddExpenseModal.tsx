@@ -33,8 +33,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch"; // Importe o Switch
 import { useAuth } from "@/contexts/AuthContext";
-// Correcção aqui: caminho completo para o ficheiro de configuração do firebase
 import {
   Expense,
   addExpense,
@@ -44,6 +44,7 @@ import {
   Category,
   Card,
   listenToCards,
+  addInstallmentExpense, // Importe a nova função
 } from "@/lib/firebase/firestore";
 import { ChevronsUpDown, Check, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,7 @@ export default function AddExpenseModal({
 }: AddExpenseModalProps) {
   const { user } = useAuth();
 
+  // Estados do formulário
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -101,12 +103,19 @@ export default function AddExpenseModal({
   const [cardId, setCardId] = useState<string | undefined>();
   const [isSaving, setIsSaving] = useState(false);
 
+  // Estados do parcelamento
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [totalAmount, setTotalAmount] = useState("");
+  const [installments, setInstallments] = useState("");
+
+  // Estados para o Combobox de Categoria
   const [categories, setCategories] = useState<Category[]>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [cards, setCards] = useState<Card[]>([]);
 
+  // Ouve as categorias e os cartões do usuário em tempo real
   useEffect(() => {
     if (user) {
       const unsubscribeCategories = listenToCategories(user.uid, setCategories);
@@ -119,9 +128,24 @@ export default function AddExpenseModal({
     }
   }, [user]);
 
+  // Calcula o valor da parcela automaticamente
+  useEffect(() => {
+    if (isInstallment) {
+      const total = parseFloat(totalAmount);
+      const numInstallments = parseInt(installments, 10);
+      if (total > 0 && numInstallments > 0) {
+        setAmount((total / numInstallments).toFixed(2));
+      } else {
+        setAmount("");
+      }
+    }
+  }, [totalAmount, installments, isInstallment]);
+
+  // Reseta o formulário ao abrir/fechar ou ao mudar o modo de edição
   useEffect(() => {
     if (isOpen) {
       if (expenseToEdit) {
+        // Modo de Edição (parcelamento desativado para simplicidade)
         setAmount(String(expenseToEdit.amount));
         setDescription(expenseToEdit.description);
         setCategory(expenseToEdit.category);
@@ -129,7 +153,11 @@ export default function AddExpenseModal({
         setDate(expenseToEdit.createdAt.toDate());
         setPaymentMethod(expenseToEdit.paymentMethod);
         setCardId(expenseToEdit.cardId);
+        setIsInstallment(false);
+        setTotalAmount("");
+        setInstallments("");
       } else {
+        // Modo de Adição
         setAmount("");
         setDescription("");
         setCategory("");
@@ -138,18 +166,29 @@ export default function AddExpenseModal({
         setPaymentMethod(undefined);
         setCardId(undefined);
         setSearchQuery("");
+        setIsInstallment(false);
+        setTotalAmount("");
+        setInstallments("");
       }
     }
   }, [isOpen, expenseToEdit]);
 
+  // Reseta o parcelamento se o método de pagamento não for Crédito
+  useEffect(() => {
+    if (paymentMethod !== "Crédito") {
+      setIsInstallment(false);
+    }
+  }, [paymentMethod]);
+
   const handleSave = async () => {
-    if (!amount || !category || !user || !date || !paymentMethod) {
+    // Validações básicas
+    if (!description || !category || !user || !date || !paymentMethod) {
       toast.error("Campos obrigatórios", {
-        description:
-          "Por favor, preencha o valor, a categoria, a data e a forma de pagamento.",
+        description: "Descrição, categoria, data e pagamento são necessários.",
       });
       return;
     }
+
     if (paymentMethod === "Crédito" && !cardId) {
       toast.error("Campo obrigatório", {
         description: "Por favor, selecione um cartão de crédito.",
@@ -158,49 +197,77 @@ export default function AddExpenseModal({
     }
 
     setIsSaving(true);
-
     let success = false;
-    const formattedAmount = parseFloat(amount);
 
-    if (expenseToEdit) {
-      const updatedData = {
-        amount: formattedAmount,
-        description: description,
-        category: category,
-        location: location,
-        createdAt: Timestamp.fromDate(date),
-        paymentMethod: paymentMethod,
-        cardId: paymentMethod === "Crédito" ? cardId : "",
-      };
-      success = await updateExpense(expenseToEdit.id, updatedData);
-    } else {
-      const expenseData: Omit<Expense, "id"> = {
-        amount: formattedAmount,
-        description: description,
-        category: category,
-        location: location,
-        paymentMethod: paymentMethod,
-        cardId: paymentMethod === "Crédito" ? cardId : "",
+    // Lógica de Salvamento
+    if (isInstallment && paymentMethod === "Crédito") {
+      // SALVAR COMPRA PARCELADA
+      const total = parseFloat(totalAmount);
+      const numInstallments = parseInt(installments, 10);
+
+      if (!(total > 0 && numInstallments > 1)) {
+        toast.error("Dados do parcelamento inválidos", {
+          description:
+            "O valor total deve ser positivo e o número de parcelas maior que 1.",
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      const baseExpenseData = {
+        description,
+        category,
+        location,
+        paymentMethod,
+        cardId: cardId!,
         userId: user.uid,
         createdAt: Timestamp.fromDate(date),
       };
-      const docId = await addExpense(expenseData);
-      success = !!docId;
+
+      success = await addInstallmentExpense(
+        baseExpenseData,
+        total,
+        numInstallments
+      );
+    } else {
+      // SALVAR COMPRA ÚNICA
+      const singleAmount = parseFloat(amount);
+      if (!(singleAmount > 0)) {
+        toast.error("Valor inválido", {
+          description: "O valor da despesa deve ser maior que zero.",
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      const expenseData: Omit<Expense, "id"> = {
+        amount: singleAmount,
+        description,
+        category,
+        location,
+        paymentMethod,
+        cardId: paymentMethod === "Crédito" ? cardId : "",
+        userId: user.uid,
+        createdAt: Timestamp.fromDate(date),
+        isInstallment: false,
+      };
+
+      if (expenseToEdit) {
+        success = await updateExpense(expenseToEdit.id, expenseData);
+      } else {
+        const docId = await addExpense(expenseData);
+        success = !!docId;
+      }
     }
 
     setIsSaving(false);
 
     if (success) {
-      toast.success("Sucesso!", {
-        description: `O seu gasto de ${formattedAmount.toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })} foi guardado.`,
-      });
+      toast.success("Sucesso!", { description: `Sua despesa foi salva.` });
       onClose();
     } else {
-      toast.error("Erro ao guardar", {
-        description: "Não foi possível guardar a despesa. Tente novamente.",
+      toast.error("Erro ao salvar", {
+        description: "Não foi possível salvar a despesa. Tente novamente.",
       });
     }
   };
@@ -219,21 +286,15 @@ export default function AddExpenseModal({
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
             {expenseToEdit ? "Editar Gasto" : "Adicionar Novo Gasto"}
           </DialogTitle>
           <DialogDescription>
-            Insira os detalhes do seu gasto. Clique em guardar quando terminar.
+            Insira os detalhes do seu gasto. Clique em salvar quando terminar.
           </DialogDescription>
         </DialogHeader>
 
@@ -246,143 +307,19 @@ export default function AddExpenseModal({
           className="grid gap-4 py-4"
         >
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="amount" className="text-right">
-              Valor
-            </Label>
-            <div className="relative col-span-3">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-                R$
-              </span>
-              <Input
-                type="number"
-                id="amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0,00"
-                required
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">
               Descrição
             </Label>
             <Input
-              type="text"
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Café na padaria..."
+              placeholder="Ex: Fone de Ouvido"
               className="col-span-3"
             />
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
-              Categoria
-            </Label>
-            <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={openCombobox}
-                  className="col-span-3 justify-between w-full"
-                >
-                  {category || "Selecione ou crie..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput
-                    placeholder="Procurar ou criar categoria..."
-                    value={searchQuery}
-                    onValueChange={setSearchQuery}
-                  />
-                  <CommandEmpty>
-                    <button
-                      type="button"
-                      className="w-full text-left p-2 text-sm"
-                      onClick={() => handleCreateCategory(searchQuery)}
-                    >
-                      {`Criar "${searchQuery}"`}
-                    </button>
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {categories.map((cat) => (
-                      <CommandItem
-                        key={cat.id}
-                        value={cat.name}
-                        onSelect={(currentValue) => {
-                          setCategory(
-                            currentValue === category ? "" : currentValue
-                          );
-                          setOpenCombobox(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            category === cat.name ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {cat.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="location" className="text-right">
-              Local
-            </Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Starbucks, Posto Shell..."
-              className="col-span-3"
-            />
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="date" className="text-right">
-              Data
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "col-span-3 justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? (
-                    format(date, "PPP", { locale: ptBR })
-                  ) : (
-                    <span>Escolha uma data</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
+          {/* Seção de Pagamento */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Pagamento</Label>
             <RadioGroup
@@ -421,13 +358,208 @@ export default function AddExpenseModal({
                     ))
                   ) : (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhum cartão registado.
+                      Nenhum cartão cadastrado.
                     </div>
                   )}
                 </SelectContent>
               </Select>
             </div>
           )}
+
+          {/* Seção de Parcelamento (condicional) */}
+          {paymentMethod === "Crédito" && !expenseToEdit && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="installment-switch" className="text-right">
+                Compra Parcelada?
+              </Label>
+              <div className="col-span-3 flex items-center">
+                <Switch
+                  id="installment-switch"
+                  checked={isInstallment}
+                  onCheckedChange={setIsInstallment}
+                />
+              </div>
+            </div>
+          )}
+
+          {isInstallment ? (
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="totalAmount" className="text-right">
+                  Valor Total
+                </Label>
+                <div className="relative col-span-3">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    type="number"
+                    id="totalAmount"
+                    value={totalAmount}
+                    onChange={(e) => setTotalAmount(e.target.value)}
+                    placeholder="Valor total da compra"
+                    required
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="installments" className="text-right">
+                  Nº de Parcelas
+                </Label>
+                <Input
+                  type="number"
+                  id="installments"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  placeholder="Ex: 10"
+                  required
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label
+                  htmlFor="amount"
+                  className="text-right text-muted-foreground"
+                >
+                  Valor Parcela
+                </Label>
+                <div className="relative col-span-3">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    type="number"
+                    id="amount"
+                    value={amount}
+                    placeholder="Calculado"
+                    disabled
+                    className="pl-9 font-bold"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="amount" className="text-right">
+                Valor
+              </Label>
+              <div className="relative col-span-3">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  type="number"
+                  id="amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0,00"
+                  required
+                  className="pl-9"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Campos restantes */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">
+              Categoria
+            </Label>
+            <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="col-span-3 justify-between w-full"
+                >
+                  {category || "Selecione ou crie..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput
+                    placeholder="Buscar ou criar categoria..."
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                  />
+                  <CommandEmpty>
+                    <button
+                      type="button"
+                      className="w-full text-left p-2 text-sm"
+                      onClick={() => handleCreateCategory(searchQuery)}
+                    >{`Criar "${searchQuery}"`}</button>
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {categories.map((cat) => (
+                      <CommandItem
+                        key={cat.id}
+                        value={cat.name}
+                        onSelect={(currentValue) => {
+                          setCategory(
+                            currentValue === category ? "" : currentValue
+                          );
+                          setOpenCombobox(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            category === cat.name ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {cat.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="location" className="text-right">
+              Local
+            </Label>
+            <Input
+              id="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Ex: Amazon, Loja Local"
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="date" className="text-right">
+              Data
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "col-span-3 justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? (
+                    format(date, "PPP", { locale: ptBR })
+                  ) : (
+                    <span>Escolha a data da 1ª parcela</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </form>
 
         <DialogFooter>
@@ -435,7 +567,7 @@ export default function AddExpenseModal({
             Cancelar
           </Button>
           <Button type="submit" form="expense-form" disabled={isSaving}>
-            {isSaving ? "A guardar..." : "Guardar"}
+            {isSaving ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>

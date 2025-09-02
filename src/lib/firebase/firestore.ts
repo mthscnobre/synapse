@@ -9,15 +9,16 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  writeBatch, // 1. Importe o 'writeBatch' para operações em lote
 } from "firebase/firestore";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths } from "date-fns"; // 2. Importe o 'addMonths'
 import { getFirebaseDb } from "./config";
 import { getStorage, ref, deleteObject } from "firebase/storage";
 
 // --- INTERFACES ---
 export interface Expense {
   id: string;
-  amount: number;
+  amount: number; // Para parcelas, este será o valor da parcela
   description: string;
   category: string;
   location: string;
@@ -25,6 +26,13 @@ export interface Expense {
   cardId?: string;
   userId: string;
   createdAt: Timestamp;
+
+  // Campos de Parcelamento (opcionais)
+  isInstallment?: boolean;
+  totalAmount?: number;
+  installmentId?: string; // ID único para agrupar todas as parcelas de uma compra
+  installmentNumber?: number;
+  totalInstallments?: number;
 }
 
 export interface Category {
@@ -50,13 +58,14 @@ export interface Income {
   id: string;
   amount: number;
   source: string;
-  payer?: string; // NOVO CAMPO ADICIONADO
+  payer?: string;
   createdAt: Timestamp;
   userId: string;
 }
 
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
 
+// Função para despesa única
 export async function addExpense(data: Omit<Expense, "id">) {
   const db = getFirebaseDb();
   try {
@@ -65,6 +74,53 @@ export async function addExpense(data: Omit<Expense, "id">) {
   } catch (e) {
     console.error("Erro ao adicionar documento: ", e);
     return null;
+  }
+}
+
+// 3. NOVA FUNÇÃO para despesas parceladas
+export async function addInstallmentExpense(
+  data: Omit<
+    Expense,
+    | "id"
+    | "amount"
+    | "isInstallment"
+    | "installmentId"
+    | "installmentNumber"
+    | "totalInstallments"
+  >,
+  totalAmount: number,
+  installments: number
+) {
+  const db = getFirebaseDb();
+  const batch = writeBatch(db); // Cria um "lote" de operações
+  const installmentId = crypto.randomUUID(); // Gera um ID único para toda a compra
+  const installmentValue = parseFloat((totalAmount / installments).toFixed(2));
+
+  for (let i = 1; i <= installments; i++) {
+    // A data de cada parcela é calculada para os meses futuros
+    const expenseDate = addMonths(data.createdAt.toDate(), i - 1);
+
+    const newExpenseDocRef = doc(collection(db, "expenses"));
+
+    const installmentData: Omit<Expense, "id"> = {
+      ...data,
+      amount: installmentValue,
+      totalAmount: totalAmount,
+      createdAt: Timestamp.fromDate(expenseDate),
+      isInstallment: true,
+      installmentId: installmentId,
+      installmentNumber: i,
+      totalInstallments: installments,
+    };
+    batch.set(newExpenseDocRef, installmentData);
+  }
+
+  try {
+    await batch.commit(); // Envia todas as parcelas para o Firebase de uma só vez
+    return true;
+  } catch (e) {
+    console.error("Erro ao adicionar despesas parceladas: ", e);
+    return false;
   }
 }
 

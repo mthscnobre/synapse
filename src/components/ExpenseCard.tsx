@@ -8,8 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { CategoryPill } from "@/components/CategoryPill";
+import { Button } from "./ui/button";
+import { CategoryPill } from "./CategoryPill";
 import { MoreHorizontal, Edit, Trash2, CreditCard } from "lucide-react";
 import { Expense, Category, Card } from "@/lib/firebase/firestore";
 
@@ -43,16 +43,19 @@ export default function ExpenseCard({
 
   let iconSrc: string | undefined = undefined;
   let iconAlt: string = "Ícone de Despesa";
-  let paymentText: string = expense.paymentMethod;
 
   if (expense.paymentMethod === "Crédito") {
     iconSrc = expenseCard?.logoUrl;
     iconAlt = expenseCard?.name || "Cartão de Crédito";
-    paymentText = expenseCard?.name || "Crédito";
   } else if (expense.paymentMethod === "Débito/Pix") {
     iconSrc = "/icons/pix-logo.svg";
     iconAlt = "Pix";
   }
+
+  const paymentText =
+    expense.paymentMethod === "Crédito" && expenseCard
+      ? `Crédito • ${expenseCard.name}`
+      : expense.paymentMethod;
 
   return (
     <UICard className="p-4 transition-shadow hover:shadow-md">
@@ -73,19 +76,28 @@ export default function ExpenseCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* Linha Superior: Descrição e Valor */}
-          <div className="flex items-center justify-between">
-            <h3 className="truncate font-semibold text-foreground">
-              {expense.description || expense.category}
-            </h3>
-            <span className="ml-4 flex-shrink-0 font-bold text-destructive">
+          {/* LINHA SUPERIOR */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate font-semibold text-foreground">
+                {expense.description || expense.category}
+              </h3>
+              {expense.isInstallment && (
+                <span className="text-xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+                  {`${String(expense.installmentNumber).padStart(
+                    2,
+                    "0"
+                  )}/${String(expense.totalInstallments).padStart(2, "0")}`}
+                </span>
+              )}
+            </div>
+            <p className="font-bold text-destructive ml-4 flex-shrink-0">
               {formattedAmount}
-            </span>
+            </p>
           </div>
 
-          {/* Linha Inferior: Metadados Balanceados */}
+          {/* LINHA INFERIOR */}
           <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
-            {/* Lado Esquerdo: Categoria e Data */}
             <div className="flex items-center gap-2 truncate">
               <CategoryPill
                 category={expense.category}
@@ -94,10 +106,9 @@ export default function ExpenseCard({
               <span>•</span>
               <span>{formattedDate}</span>
             </div>
-            {/* Lado Direito: Forma de Pagamento */}
-            <div className="flex flex-shrink-0 items-center gap-1.5">
-              <span className="text-xs font-medium">{paymentText}</span>
-            </div>
+            <p className="text-xs text-muted-foreground ml-4 flex-shrink-0">
+              {paymentText}
+            </p>
           </div>
         </div>
 
@@ -113,6 +124,7 @@ export default function ExpenseCard({
               <DropdownMenuItem
                 onClick={() => onEdit(expense)}
                 className="cursor-pointer"
+                disabled={expense.isInstallment}
               >
                 <Edit className="mr-2 h-4 w-4" />
                 <span>Editar</span>
