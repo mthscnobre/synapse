@@ -16,7 +16,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { LogOut, CreditCard, LayoutGrid, TrendingUp } from "lucide-react";
+import {
+  LogOut,
+  CreditCard,
+  LayoutGrid,
+  FileText,
+  CalendarClock,
+} from "lucide-react";
 
 export default function Header() {
   const { user } = useAuth();
@@ -65,12 +71,6 @@ export default function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/incomes">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    <span>Minhas Entradas</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/cards">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Meus Cartões</span>
@@ -80,6 +80,18 @@ export default function Header() {
                   <Link href="/categories">
                     <LayoutGrid className="mr-2 h-4 w-4" />
                     <span>Minhas Categorias</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/incomes">
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Minhas Entradas</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/bills">
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    <span>Contas a Pagar</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

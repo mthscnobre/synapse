@@ -26,14 +26,14 @@ export interface Expense {
   paymentMethod: "Débito/Pix" | "Crédito";
   cardId?: string;
   userId: string;
-  createdAt: Timestamp; // Data de vencimento da parcela
+  createdAt: Timestamp;
   notes?: string;
   isInstallment?: boolean;
   installmentNumber?: number;
   totalInstallments?: number;
   totalAmount?: number;
   installmentId?: string;
-  purchaseDate?: Timestamp; // Data da compra original
+  purchaseDate?: Timestamp;
 }
 
 export interface Category {
@@ -64,8 +64,18 @@ export interface Income {
   userId: string;
 }
 
-// --- FUNÇÕES DE DESPESAS (EXPENSES) ---
+export interface Bill {
+  id: string;
+  description: string;
+  amount: number;
+  dueDay: number; // Dia do mês (1-31)
+  category: string;
+  isActive: boolean;
+  userId: string;
+}
 
+// --- FUNÇÕES DE DESPESAS (EXPENSES) ---
+// ... (código existente de despesas) ...
 export async function addExpense(data: Omit<Expense, "id">) {
   const db = getFirebaseDb();
   try {
@@ -150,7 +160,7 @@ export async function addInstallmentExpense(
   const db = getFirebaseDb();
   const batch = writeBatch(db);
   const installmentId = doc(collection(db, "expenses")).id;
-  const purchaseDate = data.createdAt; // A data inicial é a data da compra
+  const purchaseDate = data.createdAt;
 
   const installmentValue = data.totalAmount / data.totalInstallments;
 
@@ -167,7 +177,7 @@ export async function addInstallmentExpense(
       totalInstallments: data.totalInstallments,
       totalAmount: data.totalAmount,
       installmentId: installmentId,
-      purchaseDate: purchaseDate, // Salva a data da compra em cada parcela
+      purchaseDate: purchaseDate,
     };
 
     batch.set(newExpenseRef, installmentData);
@@ -215,6 +225,7 @@ export async function deleteInstallmentExpense(
 }
 
 // --- FUNÇÕES DE CATEGORIAS (CATEGORIES) ---
+// ... (código existente de categorias) ...
 export async function addCategory(data: Omit<Category, "id">) {
   const db = getFirebaseDb();
   try {
@@ -273,6 +284,7 @@ export async function deleteCategory(categoryId: string) {
 }
 
 // --- FUNÇÕES DE CARTÕES (CARDS) ---
+// ... (código existente de cartões) ...
 export async function addCard(data: Omit<Card, "id">) {
   const db = getFirebaseDb();
   try {
@@ -344,6 +356,7 @@ export function listenToCards(
 }
 
 // --- FUNÇÕES DE ENTRADAS (INCOME) ---
+// ... (código existente de entradas) ...
 export function listenToIncomes(
   userId: string,
   month: Date,
@@ -405,4 +418,64 @@ export async function deleteIncome(incomeId: string) {
     console.error("Erro ao deletar entrada: ", e);
     return false;
   }
+}
+
+// --- FUNÇÕES DE CONTAS A PAGAR (BILLS) ---
+
+export async function addBill(data: Omit<Bill, "id">) {
+  const db = getFirebaseDb();
+  try {
+    const docRef = await addDoc(collection(db, "bills"), data);
+    return { id: docRef.id, ...data };
+  } catch (e) {
+    console.error("Erro ao adicionar conta a pagar: ", e);
+    return null;
+  }
+}
+
+export async function updateBill(
+  billId: string,
+  data: Partial<Omit<Bill, "id" | "userId">>
+) {
+  const db = getFirebaseDb();
+  try {
+    const billRef = doc(db, "bills", billId);
+    await updateDoc(billRef, data);
+    return true;
+  } catch (e) {
+    console.error("Erro ao atualizar conta a pagar: ", e);
+    return false;
+  }
+}
+
+export async function deleteBill(billId: string) {
+  const db = getFirebaseDb();
+  try {
+    await deleteDoc(doc(db, "bills", billId));
+    return true;
+  } catch (e) {
+    console.error("Erro ao deletar conta a pagar: ", e);
+    return false;
+  }
+}
+
+export function listenToBills(
+  userId: string,
+  callback: (bills: Bill[]) => void
+) {
+  const db = getFirebaseDb();
+  const billsCollection = collection(db, "bills");
+  const q = query(
+    billsCollection,
+    where("userId", "==", userId),
+    orderBy("dueDay")
+  );
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const bills: Bill[] = [];
+    querySnapshot.forEach((doc) => {
+      bills.push({ id: doc.id, ...doc.data() } as Bill);
+    });
+    callback(bills);
+  });
+  return unsubscribe;
 }
