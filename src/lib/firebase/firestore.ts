@@ -9,30 +9,31 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  writeBatch, // 1. Importe o 'writeBatch' para operações em lote
+  writeBatch,
+  getDocs,
 } from "firebase/firestore";
-import { startOfMonth, endOfMonth, addMonths } from "date-fns"; // 2. Importe o 'addMonths'
+import { startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { getFirebaseDb } from "./config";
 import { getStorage, ref, deleteObject } from "firebase/storage";
 
 // --- INTERFACES ---
 export interface Expense {
   id: string;
-  amount: number; // Para parcelas, este será o valor da parcela
+  amount: number;
   description: string;
   category: string;
   location: string;
   paymentMethod: "Débito/Pix" | "Crédito";
   cardId?: string;
   userId: string;
-  createdAt: Timestamp;
-
-  // Campos de Parcelamento (opcionais)
+  createdAt: Timestamp; // Data de vencimento da parcela
+  notes?: string;
   isInstallment?: boolean;
-  totalAmount?: number;
-  installmentId?: string; // ID único para agrupar todas as parcelas de uma compra
   installmentNumber?: number;
   totalInstallments?: number;
+  totalAmount?: number;
+  installmentId?: string;
+  purchaseDate?: Timestamp; // Data da compra original
 }
 
 export interface Category {
@@ -58,14 +59,13 @@ export interface Income {
   id: string;
   amount: number;
   source: string;
-  payer?: string;
+  payer: string;
   createdAt: Timestamp;
   userId: string;
 }
 
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
 
-// Função para despesa única
 export async function addExpense(data: Omit<Expense, "id">) {
   const db = getFirebaseDb();
   try {
@@ -74,53 +74,6 @@ export async function addExpense(data: Omit<Expense, "id">) {
   } catch (e) {
     console.error("Erro ao adicionar documento: ", e);
     return null;
-  }
-}
-
-// 3. NOVA FUNÇÃO para despesas parceladas
-export async function addInstallmentExpense(
-  data: Omit<
-    Expense,
-    | "id"
-    | "amount"
-    | "isInstallment"
-    | "installmentId"
-    | "installmentNumber"
-    | "totalInstallments"
-  >,
-  totalAmount: number,
-  installments: number
-) {
-  const db = getFirebaseDb();
-  const batch = writeBatch(db); // Cria um "lote" de operações
-  const installmentId = crypto.randomUUID(); // Gera um ID único para toda a compra
-  const installmentValue = parseFloat((totalAmount / installments).toFixed(2));
-
-  for (let i = 1; i <= installments; i++) {
-    // A data de cada parcela é calculada para os meses futuros
-    const expenseDate = addMonths(data.createdAt.toDate(), i - 1);
-
-    const newExpenseDocRef = doc(collection(db, "expenses"));
-
-    const installmentData: Omit<Expense, "id"> = {
-      ...data,
-      amount: installmentValue,
-      totalAmount: totalAmount,
-      createdAt: Timestamp.fromDate(expenseDate),
-      isInstallment: true,
-      installmentId: installmentId,
-      installmentNumber: i,
-      totalInstallments: installments,
-    };
-    batch.set(newExpenseDocRef, installmentData);
-  }
-
-  try {
-    await batch.commit(); // Envia todas as parcelas para o Firebase de uma só vez
-    return true;
-  } catch (e) {
-    console.error("Erro ao adicionar despesas parceladas: ", e);
-    return false;
   }
 }
 
@@ -180,8 +133,88 @@ export function listenToExpenses(
   return unsubscribe;
 }
 
-// --- FUNÇÕES DE CATEGORIAS (CATEGORIES) ---
+export async function addInstallmentExpense(
+  data: Omit<
+    Expense,
+    | "id"
+    | "amount"
+    | "isInstallment"
+    | "installmentNumber"
+    | "installmentId"
+    | "purchaseDate"
+  > & {
+    totalAmount: number;
+    totalInstallments: number;
+  }
+) {
+  const db = getFirebaseDb();
+  const batch = writeBatch(db);
+  const installmentId = doc(collection(db, "expenses")).id;
+  const purchaseDate = data.createdAt; // A data inicial é a data da compra
 
+  const installmentValue = data.totalAmount / data.totalInstallments;
+
+  for (let i = 1; i <= data.totalInstallments; i++) {
+    const expenseDate = addMonths(purchaseDate.toDate(), i - 1);
+    const newExpenseRef = doc(collection(db, "expenses"));
+
+    const installmentData: Omit<Expense, "id"> = {
+      ...data,
+      amount: installmentValue,
+      createdAt: Timestamp.fromDate(expenseDate),
+      isInstallment: true,
+      installmentNumber: i,
+      totalInstallments: data.totalInstallments,
+      totalAmount: data.totalAmount,
+      installmentId: installmentId,
+      purchaseDate: purchaseDate, // Salva a data da compra em cada parcela
+    };
+
+    batch.set(newExpenseRef, installmentData);
+  }
+
+  try {
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error("Erro ao adicionar despesa parcelada: ", error);
+    return false;
+  }
+}
+
+export async function deleteInstallmentExpense(
+  installmentId: string,
+  userId: string
+) {
+  const db = getFirebaseDb();
+  const expensesCollection = collection(db, "expenses");
+
+  const q = query(
+    expensesCollection,
+    where("userId", "==", userId),
+    where("installmentId", "==", installmentId)
+  );
+
+  try {
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      return true;
+    }
+
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error("Erro ao deletar grupo de parcelas: ", error);
+    return false;
+  }
+}
+
+// --- FUNÇÕES DE CATEGORIAS (CATEGORIES) ---
 export async function addCategory(data: Omit<Category, "id">) {
   const db = getFirebaseDb();
   try {
@@ -190,33 +223,6 @@ export async function addCategory(data: Omit<Category, "id">) {
   } catch (e) {
     console.error("Erro ao adicionar categoria: ", e);
     return null;
-  }
-}
-
-export async function updateCategory(
-  categoryId: string,
-  data: Partial<Omit<Category, "id" | "userId">>
-) {
-  const db = getFirebaseDb();
-  try {
-    const categoryRef = doc(db, "categories", categoryId);
-    await updateDoc(categoryRef, data);
-    return true;
-  } catch (e) {
-    console.error("Erro ao atualizar categoria: ", e);
-    return false;
-  }
-}
-
-export async function deleteCategory(categoryId: string) {
-  const db = getFirebaseDb();
-  try {
-    const categoryRef = doc(db, "categories", categoryId);
-    await deleteDoc(categoryRef);
-    return true;
-  } catch (e) {
-    console.error("Erro ao deletar categoria: ", e);
-    return false;
   }
 }
 
@@ -240,9 +246,33 @@ export function listenToCategories(
   });
   return unsubscribe;
 }
+export async function updateCategory(
+  categoryId: string,
+  data: Partial<Omit<Category, "id" | "userId">>
+) {
+  const db = getFirebaseDb();
+  try {
+    const categoryRef = doc(db, "categories", categoryId);
+    await updateDoc(categoryRef, data);
+    return true;
+  } catch (e) {
+    console.error("Erro ao atualizar categoria: ", e);
+    return false;
+  }
+}
+
+export async function deleteCategory(categoryId: string) {
+  const db = getFirebaseDb();
+  try {
+    await deleteDoc(doc(db, "categories", categoryId));
+    return true;
+  } catch (e) {
+    console.error("Erro ao deletar categoria: ", e);
+    return false;
+  }
+}
 
 // --- FUNÇÕES DE CARTÕES (CARDS) ---
-
 export async function addCard(data: Omit<Card, "id">) {
   const db = getFirebaseDb();
   try {
@@ -314,12 +344,37 @@ export function listenToCards(
 }
 
 // --- FUNÇÕES DE ENTRADAS (INCOME) ---
+export function listenToIncomes(
+  userId: string,
+  month: Date,
+  callback: (incomes: Income[]) => void
+) {
+  const db = getFirebaseDb();
+  const start = startOfMonth(month);
+  const end = endOfMonth(month);
+
+  const q = query(
+    collection(db, "incomes"),
+    where("userId", "==", userId),
+    where("createdAt", ">=", start),
+    where("createdAt", "<=", end),
+    orderBy("createdAt", "desc")
+  );
+
+  return onSnapshot(q, (querySnapshot) => {
+    const incomesData: Income[] = [];
+    querySnapshot.forEach((doc) => {
+      incomesData.push({ id: doc.id, ...doc.data() } as Income);
+    });
+    callback(incomesData);
+  });
+}
 
 export async function addIncome(data: Omit<Income, "id">) {
   const db = getFirebaseDb();
   try {
     const docRef = await addDoc(collection(db, "incomes"), data);
-    return { id: docRef.id, ...data };
+    return docRef.id;
   } catch (e) {
     console.error("Erro ao adicionar entrada: ", e);
     return null;
@@ -344,40 +399,10 @@ export async function updateIncome(
 export async function deleteIncome(incomeId: string) {
   const db = getFirebaseDb();
   try {
-    const incomeRef = doc(db, "incomes", incomeId);
-    await deleteDoc(incomeRef);
+    await deleteDoc(doc(db, "incomes", incomeId));
     return true;
   } catch (e) {
     console.error("Erro ao deletar entrada: ", e);
     return false;
   }
-}
-
-export function listenToIncomes(
-  userId: string,
-  month: Date,
-  callback: (incomes: Income[]) => void
-) {
-  const db = getFirebaseDb();
-  const incomesCollection = collection(db, "incomes");
-
-  const start = startOfMonth(month);
-  const end = endOfMonth(month);
-
-  const q = query(
-    incomesCollection,
-    where("userId", "==", userId),
-    where("createdAt", ">=", start),
-    where("createdAt", "<=", end),
-    orderBy("createdAt", "desc")
-  );
-
-  const unsubscribe = onSnapshot(q, (querySnapshot) => {
-    const incomes: Income[] = [];
-    querySnapshot.forEach((doc) => {
-      incomes.push({ id: doc.id, ...doc.data() } as Income);
-    });
-    callback(incomes);
-  });
-  return unsubscribe;
 }

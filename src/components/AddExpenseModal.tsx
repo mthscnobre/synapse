@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Switch } from "@/components/ui/switch"; // Importe o Switch
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Expense,
@@ -44,7 +45,7 @@ import {
   Category,
   Card,
   listenToCards,
-  addInstallmentExpense, // Importe a nova função
+  addInstallmentExpense,
 } from "@/lib/firebase/firestore";
 import { ChevronsUpDown, Check, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,6 @@ import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
 import { toast } from "sonner";
 
-// Paleta de cores para novas categorias
 const categoryColors = [
   "#ef4444",
   "#f97316",
@@ -101,6 +101,7 @@ export default function AddExpenseModal({
     "Débito/Pix" | "Crédito"
   >();
   const [cardId, setCardId] = useState<string | undefined>();
+  const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Estados do parcelamento
@@ -115,7 +116,6 @@ export default function AddExpenseModal({
 
   const [cards, setCards] = useState<Card[]>([]);
 
-  // Ouve as categorias e os cartões do usuário em tempo real
   useEffect(() => {
     if (user) {
       const unsubscribeCategories = listenToCategories(user.uid, setCategories);
@@ -128,7 +128,6 @@ export default function AddExpenseModal({
     }
   }, [user]);
 
-  // Calcula o valor da parcela automaticamente
   useEffect(() => {
     if (isInstallment) {
       const total = parseFloat(totalAmount);
@@ -141,11 +140,9 @@ export default function AddExpenseModal({
     }
   }, [totalAmount, installments, isInstallment]);
 
-  // Reseta o formulário ao abrir/fechar ou ao mudar o modo de edição
   useEffect(() => {
     if (isOpen) {
       if (expenseToEdit) {
-        // Modo de Edição (parcelamento desativado para simplicidade)
         setAmount(String(expenseToEdit.amount));
         setDescription(expenseToEdit.description);
         setCategory(expenseToEdit.category);
@@ -153,11 +150,12 @@ export default function AddExpenseModal({
         setDate(expenseToEdit.createdAt.toDate());
         setPaymentMethod(expenseToEdit.paymentMethod);
         setCardId(expenseToEdit.cardId);
-        setIsInstallment(false);
+        setNotes(expenseToEdit.notes || "");
+        setIsInstallment(false); // Modo de edição não permite alterar parcelamento por enquanto
         setTotalAmount("");
         setInstallments("");
       } else {
-        // Modo de Adição
+        // Reset para um novo gasto
         setAmount("");
         setDescription("");
         setCategory("");
@@ -166,6 +164,7 @@ export default function AddExpenseModal({
         setPaymentMethod(undefined);
         setCardId(undefined);
         setSearchQuery("");
+        setNotes("");
         setIsInstallment(false);
         setTotalAmount("");
         setInstallments("");
@@ -173,15 +172,14 @@ export default function AddExpenseModal({
     }
   }, [isOpen, expenseToEdit]);
 
-  // Reseta o parcelamento se o método de pagamento não for Crédito
   useEffect(() => {
+    // Desativa o parcelamento se o método de pagamento não for crédito
     if (paymentMethod !== "Crédito") {
       setIsInstallment(false);
     }
   }, [paymentMethod]);
 
   const handleSave = async () => {
-    // Validações básicas
     if (!description || !category || !user || !date || !paymentMethod) {
       toast.error("Campos obrigatórios", {
         description: "Descrição, categoria, data e pagamento são necessários.",
@@ -199,9 +197,7 @@ export default function AddExpenseModal({
     setIsSaving(true);
     let success = false;
 
-    // Lógica de Salvamento
     if (isInstallment && paymentMethod === "Crédito") {
-      // SALVAR COMPRA PARCELADA
       const total = parseFloat(totalAmount);
       const numInstallments = parseInt(installments, 10);
 
@@ -214,23 +210,21 @@ export default function AddExpenseModal({
         return;
       }
 
-      const baseExpenseData = {
+      const installmentPayload = {
         description,
         category,
         location,
+        notes,
         paymentMethod,
         cardId: cardId!,
         userId: user.uid,
-        createdAt: Timestamp.fromDate(date),
+        createdAt: Timestamp.fromDate(date), // Esta será a data da compra
+        totalAmount: total,
+        totalInstallments: numInstallments,
       };
 
-      success = await addInstallmentExpense(
-        baseExpenseData,
-        total,
-        numInstallments
-      );
+      success = await addInstallmentExpense(installmentPayload);
     } else {
-      // SALVAR COMPRA ÚNICA
       const singleAmount = parseFloat(amount);
       if (!(singleAmount > 0)) {
         toast.error("Valor inválido", {
@@ -245,6 +239,7 @@ export default function AddExpenseModal({
         description,
         category,
         location,
+        notes,
         paymentMethod,
         cardId: paymentMethod === "Crédito" ? cardId : "",
         userId: user.uid,
@@ -253,6 +248,7 @@ export default function AddExpenseModal({
       };
 
       if (expenseToEdit) {
+        // Não permite transformar uma despesa única em parcelada na edição
         success = await updateExpense(expenseToEdit.id, expenseData);
       } else {
         const docId = await addExpense(expenseData);
@@ -318,8 +314,6 @@ export default function AddExpenseModal({
               className="col-span-3"
             />
           </div>
-
-          {/* Seção de Pagamento */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Pagamento</Label>
             <RadioGroup
@@ -339,7 +333,6 @@ export default function AddExpenseModal({
               </div>
             </RadioGroup>
           </div>
-
           {paymentMethod === "Crédito" && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="card" className="text-right">
@@ -365,12 +358,10 @@ export default function AddExpenseModal({
               </Select>
             </div>
           )}
-
-          {/* Seção de Parcelamento (condicional) */}
           {paymentMethod === "Crédito" && !expenseToEdit && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="installment-switch" className="text-right">
-                Compra Parcelada?
+                Parcelado?
               </Label>
               <div className="col-span-3 flex items-center">
                 <Switch
@@ -381,7 +372,6 @@ export default function AddExpenseModal({
               </div>
             </div>
           )}
-
           {isInstallment ? (
             <>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -460,8 +450,6 @@ export default function AddExpenseModal({
               </div>
             </div>
           )}
-
-          {/* Campos restantes */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="category" className="text-right">
               Categoria
@@ -559,6 +547,21 @@ export default function AddExpenseModal({
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="notes" className="text-right pt-2">
+              Notas
+            </Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                setNotes(e.target.value)
+              }
+              placeholder="Alguma observação? (Ex: Dividido com...)"
+              className="col-span-3"
+            />
           </div>
         </form>
 

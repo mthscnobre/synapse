@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { CategoryPill } from "./CategoryPill";
-import { MoreHorizontal, Edit, Trash2, CreditCard } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, CreditCard, Info } from "lucide-react";
 import { Expense, Category, Card } from "@/lib/firebase/firestore";
 
 interface ExpenseCardProps {
   expense: Expense;
   onEdit: (expense: Expense) => void;
+  onView: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
   categories: Category[];
   cards: Card[];
@@ -24,6 +25,7 @@ interface ExpenseCardProps {
 export default function ExpenseCard({
   expense,
   onEdit,
+  onView,
   onDelete,
   categories,
   cards,
@@ -76,27 +78,23 @@ export default function ExpenseCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* LINHA SUPERIOR */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <h3 className="truncate font-semibold text-foreground">
                 {expense.description || expense.category}
               </h3>
               {expense.isInstallment && (
-                <span className="text-xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
-                  {`${String(expense.installmentNumber).padStart(
-                    2,
-                    "0"
-                  )}/${String(expense.totalInstallments).padStart(2, "0")}`}
-                </span>
+                <span className="text-xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{`${String(
+                  expense.installmentNumber
+                ).padStart(2, "0")}/${String(
+                  expense.totalInstallments
+                ).padStart(2, "0")}`}</span>
               )}
             </div>
             <p className="font-bold text-destructive ml-4 flex-shrink-0">
               {formattedAmount}
             </p>
           </div>
-
-          {/* LINHA INFERIOR */}
           <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center gap-2 truncate">
               <CategoryPill
@@ -112,7 +110,7 @@ export default function ExpenseCard({
           </div>
         </div>
 
-        <div className="ml-2">
+        <div className="ml-2 flex flex-col items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -138,6 +136,14 @@ export default function ExpenseCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => onView(expense)}
+          >
+            <span className="sr-only">Ver detalhes</span>
+            <Info className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </UICard>
