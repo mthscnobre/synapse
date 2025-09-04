@@ -16,6 +16,7 @@ import {
   Category,
   listenToCards,
   Card,
+  generateAutomaticExpensesForCurrentMonth, // <<<< IMPORTE A FUNÇÃO MÁGICA
 } from "@/lib/firebase/firestore";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addMonths, subMonths, format, startOfMonth } from "date-fns";
@@ -38,6 +39,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user) {
+      // <<<< ATIVA O GATILHO ASSIM QUE O USUÁRIO FOR CONFIRMADO
+      generateAutomaticExpensesForCurrentMonth(user.uid);
+
       const unsubscribeExpenses = listenToExpenses(
         user.uid,
         currentMonth,

@@ -20,8 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bill, addBill, updateBill, Category } from "@/lib/firebase/firestore";
+import {
+  Bill,
+  addBill,
+  updateBill,
+  Category,
+  Card,
+} from "@/lib/firebase/firestore";
 import { toast } from "sonner";
 
 interface AddEditBillModalProps {
@@ -29,6 +36,7 @@ interface AddEditBillModalProps {
   onClose: () => void;
   billToEdit?: Bill | null;
   categories: Category[];
+  cards: Card[];
 }
 
 export default function AddEditBillModal({
@@ -36,6 +44,7 @@ export default function AddEditBillModal({
   onClose,
   billToEdit,
   categories,
+  cards,
 }: AddEditBillModalProps) {
   const { user } = useAuth();
   const [description, setDescription] = useState("");
@@ -45,6 +54,12 @@ export default function AddEditBillModal({
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [isAutomatic, setIsAutomatic] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<
+    "Débito/Pix" | "Crédito"
+  >();
+  const [cardId, setCardId] = useState<string | undefined>();
+
   useEffect(() => {
     if (isOpen) {
       if (billToEdit) {
@@ -53,12 +68,18 @@ export default function AddEditBillModal({
         setDueDay(String(billToEdit.dueDay));
         setCategory(billToEdit.category);
         setIsActive(billToEdit.isActive);
+        setIsAutomatic(billToEdit.isAutomatic || false);
+        setPaymentMethod(billToEdit.paymentMethod);
+        setCardId(billToEdit.cardId);
       } else {
         setDescription("");
         setAmount("");
         setDueDay("");
         setCategory("");
         setIsActive(true);
+        setIsAutomatic(false);
+        setPaymentMethod(undefined);
+        setCardId(undefined);
       }
     }
   }, [isOpen, billToEdit]);
@@ -68,23 +89,41 @@ export default function AddEditBillModal({
       toast.error("Todos os campos são obrigatórios.");
       return;
     }
+    if (isAutomatic && !paymentMethod) {
+      toast.error(
+        "Para contas automáticas, a forma de pagamento é obrigatória."
+      );
+      return;
+    }
+    if (isAutomatic && paymentMethod === "Crédito" && !cardId) {
+      toast.error(
+        "Por favor, selecione um cartão de crédito para a conta automática."
+      );
+      return;
+    }
 
     setIsSaving(true);
     let success = false;
 
-    const billData = {
+    const baseBillData: Omit<Bill, "id" | "userId"> = {
       description,
       amount: parseFloat(amount),
       dueDay: parseInt(dueDay, 10),
       category,
       isActive,
+      isAutomatic,
     };
 
+    // Adiciona os campos de pagamento apenas se for automático
+    if (isAutomatic) {
+      baseBillData.paymentMethod = paymentMethod;
+      baseBillData.cardId = paymentMethod === "Crédito" ? cardId : "";
+    }
+
     if (billToEdit) {
-      success = await updateBill(billToEdit.id, billData);
+      success = await updateBill(billToEdit.id, baseBillData);
     } else {
-      const newBillData = { ...billData, userId: user.uid };
-      const result = await addBill(newBillData);
+      const result = await addBill({ ...baseBillData, userId: user.uid });
       success = !!result;
     }
 
@@ -110,7 +149,7 @@ export default function AddEditBillModal({
             {billToEdit ? "Editar Conta" : "Adicionar Nova Conta"}
           </DialogTitle>
           <DialogDescription>
-            Preencha os detalhes da sua despesa recorrente.
+            Preencha os detalhes da sua conta recorrente.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -131,7 +170,6 @@ export default function AddEditBillModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Netflix, Aluguel"
               className="col-span-3"
-              disabled={isSaving}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -143,9 +181,8 @@ export default function AddEditBillModal({
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Ex: 59,90"
+              placeholder="Ex: 39,90"
               className="col-span-3"
-              disabled={isSaving}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -161,18 +198,13 @@ export default function AddEditBillModal({
               onChange={(e) => setDueDay(e.target.value)}
               placeholder="Ex: 10"
               className="col-span-3"
-              disabled={isSaving}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="category" className="text-right">
               Categoria
             </Label>
-            <Select
-              onValueChange={setCategory}
-              value={category}
-              disabled={isSaving}
-            >
+            <Select onValueChange={setCategory} value={category}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Selecione uma categoria" />
               </SelectTrigger>
@@ -186,18 +218,75 @@ export default function AddEditBillModal({
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="isActive" className="text-right">
-              Ativa
+            <Label htmlFor="status" className="text-right">
+              Status
             </Label>
-            <div className="col-span-3">
+            <div className="col-span-3 flex items-center">
               <Switch
-                id="isActive"
+                id="status"
                 checked={isActive}
                 onCheckedChange={setIsActive}
-                disabled={isSaving}
               />
             </div>
           </div>
+
+          <div className="my-4 border-t border-border"></div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="isAutomatic" className="text-right">
+              Gerar Despesa Automática?
+            </Label>
+            <div className="col-span-3 flex items-center">
+              <Switch
+                id="isAutomatic"
+                checked={isAutomatic}
+                onCheckedChange={setIsAutomatic}
+              />
+            </div>
+          </div>
+
+          {isAutomatic && (
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Pagamento</Label>
+                <RadioGroup
+                  value={paymentMethod}
+                  onValueChange={(value: "Débito/Pix" | "Crédito") =>
+                    setPaymentMethod(value)
+                  }
+                  className="col-span-3 flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Débito/Pix" id="bill-debit" />
+                    <Label htmlFor="bill-debit">Débito/Pix</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Crédito" id="bill-credit" />
+                    <Label htmlFor="bill-credit">Crédito</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              {paymentMethod === "Crédito" && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="bill-card" className="text-right">
+                    Cartão
+                  </Label>
+                  <Select onValueChange={setCardId} value={cardId}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecione um cartão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cards.map((card) => (
+                        <SelectItem key={card.id} value={card.id}>
+                          {card.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
+          )}
         </form>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={isSaving}>

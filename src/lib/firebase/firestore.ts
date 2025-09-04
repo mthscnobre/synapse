@@ -11,10 +11,13 @@ import {
   updateDoc,
   writeBatch,
   getDocs,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
-import { startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format } from "date-fns";
 import { getFirebaseDb } from "./config";
 import { getStorage, ref, deleteObject } from "firebase/storage";
+import { toast } from "sonner";
 
 // --- INTERFACES ---
 export interface Expense {
@@ -55,6 +58,19 @@ export interface Card {
   storagePath?: string;
 }
 
+export interface Bill {
+  id: string;
+  description: string;
+  amount: number;
+  dueDay: number;
+  category: string;
+  isActive: boolean;
+  userId: string;
+  isAutomatic?: boolean;
+  paymentMethod?: "Débito/Pix" | "Crédito";
+  cardId?: string;
+}
+
 export interface Income {
   id: string;
   amount: number;
@@ -64,18 +80,8 @@ export interface Income {
   userId: string;
 }
 
-export interface Bill {
-  id: string;
-  description: string;
-  amount: number;
-  dueDay: number; // Dia do mês (1-31)
-  category: string;
-  isActive: boolean;
-  userId: string;
-}
-
 // --- FUNÇÕES DE DESPESAS (EXPENSES) ---
-// ... (código existente de despesas) ...
+
 export async function addExpense(data: Omit<Expense, "id">) {
   const db = getFirebaseDb();
   try {
@@ -225,7 +231,6 @@ export async function deleteInstallmentExpense(
 }
 
 // --- FUNÇÕES DE CATEGORIAS (CATEGORIES) ---
-// ... (código existente de categorias) ...
 export async function addCategory(data: Omit<Category, "id">) {
   const db = getFirebaseDb();
   try {
@@ -284,7 +289,6 @@ export async function deleteCategory(categoryId: string) {
 }
 
 // --- FUNÇÕES DE CARTÕES (CARDS) ---
-// ... (código existente de cartões) ...
 export async function addCard(data: Omit<Card, "id">) {
   const db = getFirebaseDb();
   try {
@@ -356,7 +360,6 @@ export function listenToCards(
 }
 
 // --- FUNÇÕES DE ENTRADAS (INCOME) ---
-// ... (código existente de entradas) ...
 export function listenToIncomes(
   userId: string,
   month: Date,
@@ -421,6 +424,25 @@ export async function deleteIncome(incomeId: string) {
 }
 
 // --- FUNÇÕES DE CONTAS A PAGAR (BILLS) ---
+export function listenToBills(
+  userId: string,
+  callback: (bills: Bill[]) => void
+) {
+  const db = getFirebaseDb();
+  const q = query(
+    collection(db, "bills"),
+    where("userId", "==", userId),
+    orderBy("dueDay")
+  );
+
+  return onSnapshot(q, (querySnapshot) => {
+    const billsData: Bill[] = [];
+    querySnapshot.forEach((doc) => {
+      billsData.push({ id: doc.id, ...doc.data() } as Bill);
+    });
+    callback(billsData);
+  });
+}
 
 export async function addBill(data: Omit<Bill, "id">) {
   const db = getFirebaseDb();
@@ -428,7 +450,7 @@ export async function addBill(data: Omit<Bill, "id">) {
     const docRef = await addDoc(collection(db, "bills"), data);
     return { id: docRef.id, ...data };
   } catch (e) {
-    console.error("Erro ao adicionar conta a pagar: ", e);
+    console.error("Erro ao adicionar conta: ", e);
     return null;
   }
 }
@@ -439,11 +461,10 @@ export async function updateBill(
 ) {
   const db = getFirebaseDb();
   try {
-    const billRef = doc(db, "bills", billId);
-    await updateDoc(billRef, data);
+    await updateDoc(doc(db, "bills", billId), data);
     return true;
   } catch (e) {
-    console.error("Erro ao atualizar conta a pagar: ", e);
+    console.error("Erro ao atualizar conta: ", e);
     return false;
   }
 }
@@ -454,28 +475,104 @@ export async function deleteBill(billId: string) {
     await deleteDoc(doc(db, "bills", billId));
     return true;
   } catch (e) {
-    console.error("Erro ao deletar conta a pagar: ", e);
+    console.error("Erro ao deletar conta: ", e);
     return false;
   }
 }
 
-export function listenToBills(
-  userId: string,
-  callback: (bills: Bill[]) => void
-) {
+// --- LÓGICA DE AUTOMAÇÃO DE CONTAS ---
+export async function generateAutomaticExpensesForCurrentMonth(userId: string) {
   const db = getFirebaseDb();
-  const billsCollection = collection(db, "bills");
-  const q = query(
-    billsCollection,
+  const now = new Date();
+  const currentMonthMarker = format(now, "yyyy-MM");
+
+  const metadataRef = doc(db, "userMetadata", userId);
+  const metadataSnap = await getDoc(metadataRef);
+  const lastGeneratedMonth = metadataSnap.data()?.lastBillsGeneratedMonth;
+
+  if (lastGeneratedMonth === currentMonthMarker) {
+    return;
+  }
+
+  const billsQuery = query(
+    collection(db, "bills"),
     where("userId", "==", userId),
-    orderBy("dueDay")
+    where("isActive", "==", true),
+    where("isAutomatic", "==", true)
   );
-  const unsubscribe = onSnapshot(q, (querySnapshot) => {
-    const bills: Bill[] = [];
-    querySnapshot.forEach((doc) => {
-      bills.push({ id: doc.id, ...doc.data() } as Bill);
-    });
-    callback(bills);
+
+  const billsSnapshot = await getDocs(billsQuery);
+  if (billsSnapshot.empty) {
+    await setDoc(
+      metadataRef,
+      { lastBillsGeneratedMonth: currentMonthMarker },
+      { merge: true }
+    );
+    return;
+  }
+
+  const batch = writeBatch(db);
+  const expensesCollection = collection(db, "expenses");
+
+  billsSnapshot.forEach((billDoc) => {
+    const bill = billDoc.data() as Bill;
+    const expenseDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      bill.dueDay
+    );
+
+    const newExpenseData: Omit<Expense, "id"> = {
+      amount: bill.amount,
+      description: bill.description,
+      category: bill.category,
+      location: "Despesa Automática",
+      paymentMethod: bill.paymentMethod || "Débito/Pix",
+      cardId: bill.cardId || "",
+      userId: userId,
+      createdAt: Timestamp.fromDate(expenseDate),
+      notes: `Gerado automaticamente a partir da conta recorrente.`,
+    };
+
+    const newExpenseRef = doc(expensesCollection);
+    batch.set(newExpenseRef, newExpenseData);
   });
-  return unsubscribe;
+
+  batch.set(
+    metadataRef,
+    { lastBillsGeneratedMonth: currentMonthMarker },
+    { merge: true }
+  );
+
+  try {
+    await batch.commit();
+    toast.success(
+      `${billsSnapshot.size} despesa(s) automática(s) foram geradas para este mês!`
+    );
+  } catch (error) {
+    console.error("Erro ao gerar despesas automáticas: ", error);
+    toast.error("Ocorreu um erro ao gerar suas despesas automáticas.");
+  }
+}
+
+export async function createExpenseFromBill(bill: Bill, userId: string) {
+  const expenseDate = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    bill.dueDay
+  );
+
+  const newExpenseData: Omit<Expense, "id"> = {
+    amount: bill.amount,
+    description: bill.description,
+    category: bill.category,
+    location: "Pagamento de Conta",
+    paymentMethod: bill.paymentMethod || "Débito/Pix",
+    cardId: bill.cardId || "",
+    userId: userId,
+    createdAt: Timestamp.fromDate(expenseDate),
+    notes: `Pagamento referente à conta "${bill.description}".`,
+  };
+
+  return await addExpense(newExpenseData);
 }

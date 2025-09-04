@@ -10,24 +10,30 @@ import {
   Bill,
   listenToBills,
   Category,
-  listenToCategories,
+  listenToCategories, // Importe
+  Card,
+  listenToCards, // Importe
 } from "@/lib/firebase/firestore";
 import { PlusCircle } from "lucide-react";
 
 export default function BillsPage() {
   const { user } = useAuth();
   const [bills, setBills] = useState<Bill[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]); // Adicione estado
+  const [cards, setCards] = useState<Card[]>([]); // Adicione estado
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billToEdit, setBillToEdit] = useState<Bill | null>(null);
 
   useEffect(() => {
     if (user) {
       const unsubscribeBills = listenToBills(user.uid, setBills);
-      const unsubscribeCategories = listenToCategories(user.uid, setCategories);
+      const unsubscribeCategories = listenToCategories(user.uid, setCategories); // Busque categorias
+      const unsubscribeCards = listenToCards(user.uid, setCards); // Busque cartões
+
       return () => {
         unsubscribeBills();
         unsubscribeCategories();
+        unsubscribeCards();
       };
     }
   }, [user]);
@@ -56,27 +62,24 @@ export default function BillsPage() {
               Contas a Pagar
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Gerencie suas despesas recorrentes e nunca perca um vencimento.
+              Organize as suas despesas recorrentes.
             </p>
           </div>
           <Button onClick={handleAddNewBill}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Adicionar Conta
+            Adicionar Nova Conta
           </Button>
         </div>
 
-        <BillsList
-          bills={bills}
-          onEdit={handleEditBill}
-          categories={categories}
-        />
+        <BillsList bills={bills} onEdit={handleEditBill} />
       </section>
 
       <AddEditBillModal
         isOpen={isModalOpen}
         onClose={closeModal}
         billToEdit={billToEdit}
-        categories={categories}
+        categories={categories} // Passe as categorias
+        cards={cards} // Passe os cartões
       />
     </AuthGuard>
   );
