@@ -26,7 +26,6 @@
 - [✨ Funcionalidades Implementadas](#-funcionalidades-implementadas)
 - [🚀 Stack de Tecnologia](#-stack-de-tecnologia)
 - [🏁 Como Rodar o Projeto](#-como-rodar-o-projeto)
-- [🗺️ Roadmap de Próximas Funcionalidades](#️-roadmap-de-próximas-funcionalidades)
 - [📜 Licença](#-licença)
 
 ---
@@ -42,15 +41,20 @@ Utilizando princípios da Terapia Cognitivo-Comportamental (TCC) e das finanças
 - ✅ **Autenticação Segura:** Cadastro e Login com E-mail e Senha.
 - ✅ **Gerenciamento de Sessão:** Sistema robusto de sessão de usuário em toda a aplicação.
 - ✅ **Tema Claro/Escuro:** Sistema de tema (`dark mode`) completo e persistente.
-- ✅ **Dashboard Principal:** Exibe um sumário de gastos do mês e um histórico de despesas em tempo real.
-- ✅ **CRUD de Despesas:** Funcionalidade completa para Criar, Ler, Atualizar e Excluir despesas.
-- ✅ **Formulário Inteligente:** Modal para adicionar/editar despesas com campos para:
-  - Valor (R$)
-  - Descrição
-  - Data (com `DatePicker`)
-  - Localidade (campo de texto)
-  - Categorias dinâmicas com opção de "criar na hora" (`Combobox`)
-  - Forma de Pagamento com seletor condicional para Cartão de Crédito
+- ✅ **Progressive Web App (PWA):** O aplicativo pode ser instalado em desktops e celulares para uma experiência nativa.
+- ✅ **Dashboard Principal:** Exibe um sumário de gastos do mês e um histórico de despesas com navegação mensal.
+- ✅ **CRUD Completo de Despesas:**
+  - Registro de despesas com valor, descrição, data, local e categoria.
+  - Sistema de **compras parceladas** que gera automaticamente as despesas futuras.
+  - Campo de **notas** para adicionar contexto a cada transação.
+  - **Modal de detalhes** para uma visão completa de cada gasto.
+- ✅ **Gerenciamento de Entradas (Receitas):** Página dedicada para registrar e gerenciar todas as fontes de renda.
+- ✅ **Gerenciamento de Cartões de Crédito:** Página dedicada para cadastrar, editar e excluir cartões, incluindo o **upload de logos** para fácil identificação.
+- ✅ **Gerenciamento de Categorias:** Página para gerenciar categorias de despesa, com um sistema de **atribuição de cores** para melhor visualização.
+- ✅ **Gerenciamento de Contas a Pagar:**
+  - Página dedicada para gerenciar despesas recorrentes (contas).
+  - Sistema de **automação** que gera despesas automaticamente a partir das contas recorrentes.
+  - Opção de **"Pagar Conta"** para transformar manualmente um planejamento em um gasto real.
 - ✅ **Notificações Toast:** Feedback visual instantâneo para ações do usuário (sucesso, erro) com `sonner`.
 - ✅ **Design Responsivo:** Interface adaptada para uso em desktop e dispositivos móveis.
 
@@ -58,13 +62,14 @@ Utilizando princípios da Terapia Cognitivo-Comportamental (TCC) e das finanças
 
 Este projeto foi construído com as seguintes tecnologias:
 
-- **Frontend:** [Next.js](https://nextjs.org/) (com App Router) e [React](https://reactjs.org/)
-- **Backend e Banco de Dados:** [Firebase](https://firebase.google.com/) (Authentication e Firestore)
+- **Framework:** [Next.js](https://nextjs.org/) (com App Router) e [React](https://reactjs.org/)
+- **Backend e Banco de Dados:** [Firebase](https://firebase.google.com/) (Authentication, Firestore e Storage)
 - **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 - **Componentes de UI:** [shadcn/ui](https://ui.shadcn.com/)
-- **Notificações:** [Sonner](https://sonner.emilkowal.ski/)
+- **Notificações Toast:** [Sonner](https://sonner.emilkowal.ski/)
 - **Ícones:** [Lucide React](https://lucide.dev/)
 - **Gerenciamento de Tema:** [next-themes](https://github.com/pacocoursey/next-themes)
+- **PWA:** [next-pwa](https://www.npmjs.com/package/next-pwa)
 - **Hospedagem:** [Vercel](https://vercel.com/)
 
 ### 🏁 Como Rodar o Projeto
@@ -74,7 +79,7 @@ Siga os passos abaixo para configurar e rodar o projeto em seu ambiente de desen
 1.  **Clone o repositório:**
 
     ```bash
-    git clone [https://github.com/seu-usuario/synapse.git](https://github.com/seu-usuario/synapse.git)
+    git clone [URL_DO_SEU_REPOSITORIO]
     cd synapse
     ```
 
@@ -98,28 +103,17 @@ Siga os passos abaixo para configurar e rodar o projeto em seu ambiente de desen
     NEXT_PUBLIC_FIREBASE_APP_ID=SEU_APP_ID
     ```
 
-4.  **Configure o Firestore:**
+4.  **Configure o Firebase:**
 
-    - No seu console do Firebase, crie as coleções `expenses` e `categories`.
-    - Adicione as Regras de Segurança do Firestore para permitir que usuários autenticados acessem seus próprios dados.
+    - No seu console do Firebase, ative os serviços de **Authentication** (com provedor E-mail/Senha), **Firestore** e **Storage**.
+    - Publique as regras de segurança para o Firestore e o Storage.
 
 5.  **Rode o servidor de desenvolvimento:**
-
     ```bash
     npm run dev
     ```
-
-    Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o resultado.
-
-### 🗺️ Roadmap de Próximas Funcionalidades
-
-O futuro do SYNAPSE inclui:
-
-- **Fase 1:** Gerenciamento completo de Cartões e Categorias.
-- **Fase 2:** Implementação de Cadastro de Entradas (Receitas) e Compras Parceladas.
-- **Fase 3:** Cadastro de Contas a Pagar, Dashboard com Calendário e Notificações PWA.
-- **Fase 4:** Filtros avançados para o histórico de gastos e uma página de Estatísticas com Gráficos.
+    Abra `http://localhost:3000` no seu navegador para ver o resultado.
 
 ### 📜 Licença
 
-Distribuído sob a Licença MIT. Veja `LICENSE` para mais informações.
+Distribuído sob a Licença MIT.
