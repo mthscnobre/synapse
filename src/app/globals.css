@@ -126,3 +126,52 @@
     @apply bg-background text-foreground;
   }
 }
+
+.rdp-root {
+  /* Cor principal para seleção e dia atual */
+  --rdp-accent-color: oklch(var(--primary));
+  --rdp-accent-color-foreground: oklch(var(--primary-foreground));
+
+  /* Cor de fundo para o hover */
+  --rdp-background-color: oklch(var(--accent));
+  --rdp-background-color-dark: oklch(var(--accent)); /* Garante consistência */
+
+  /* Cor para o dia de hoje */
+  --rdp-today-color: oklch(var(--foreground));
+  --rdp-today-font-weight: bold;
+
+  /* Outras cores */
+  --rdp-cell-size: 40px;
+  --rdp-caption-font-size: 1rem;
+  --rdp-day-font-size: 0.875rem;
+}
+
+/* PONTINHOS */
+
+/* Estilo base para o dia no calendário */
+.rdp-day {
+  position: relative;
+}
+
+/* Estilo para o marcador de evento (pontinho) */
+.event-card::after,
+.event-bill::after {
+  content: "";
+  position: absolute;
+  bottom: 6px; /* Ajuste a posição vertical do ponto */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Cor para faturas de cartão (Azul Muted) */
+.event-card::after {
+  background-color: #7a96b7;
+}
+
+/* Cor para contas (Verde Sálvia) */
+.event-bill::after {
+  background-color: #5e9c6c;
+}

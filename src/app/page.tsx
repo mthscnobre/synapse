@@ -7,6 +7,7 @@ import ExpensesList from "@/components/ExpensesList";
 import AddExpenseButton from "@/components/AddExpenseButton";
 import DashboardSummary from "@/components/DashboardSummary";
 import ExpenseDetailModal from "@/components/ExpenseDetailModal";
+import DashboardCalendar from "@/components/DashboardCalendar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -16,17 +17,27 @@ import {
   Category,
   listenToCards,
   Card,
-  generateAutomaticExpensesForCurrentMonth, // <<<< IMPORTE A FUNÇÃO MÁGICA
+  Bill,
+  listenToBills,
+  generateAutomaticExpensesForCurrentMonth,
 } from "@/lib/firebase/firestore";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addMonths, subMonths, format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+// Interface para nossos eventos de calendário unificados
+export interface CalendarEvent {
+  date: Date;
+  title: string;
+  type: "bill" | "card";
+}
 
 export default function HomePage() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
 
   // Estado para o modal de Adicionar/Editar
@@ -39,7 +50,6 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user) {
-      // <<<< ATIVA O GATILHO ASSIM QUE O USUÁRIO FOR CONFIRMADO
       generateAutomaticExpensesForCurrentMonth(user.uid);
 
       const unsubscribeExpenses = listenToExpenses(
@@ -49,16 +59,43 @@ export default function HomePage() {
       );
       const unsubscribeCategories = listenToCategories(user.uid, setCategories);
       const unsubscribeCards = listenToCards(user.uid, setCards);
+      const unsubscribeBills = listenToBills(user.uid, setBills);
 
       return () => {
         unsubscribeExpenses();
         unsubscribeCategories();
         unsubscribeCards();
+        unsubscribeBills();
       };
     }
   }, [user, currentMonth]);
 
-  // Funções para o modal de Adicionar/Editar
+  const calendarEvents = useMemo(() => {
+    const events: CalendarEvent[] = [];
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+
+    cards.forEach((card) => {
+      events.push({
+        date: new Date(year, month, card.dueDay),
+        title: `Fatura ${card.name}`,
+        type: "card",
+      });
+    });
+
+    bills.forEach((bill) => {
+      if (bill.isActive && bill.paymentMethod !== "Crédito") {
+        events.push({
+          date: new Date(year, month, bill.dueDay),
+          title: bill.description,
+          type: "bill",
+        });
+      }
+    });
+
+    return events;
+  }, [cards, bills, currentMonth]);
+
   const handleOpenAddModal = () => {
     setExpenseToEdit(null);
     setIsAddEditModalOpen(true);
@@ -72,7 +109,6 @@ export default function HomePage() {
     setExpenseToEdit(null);
   };
 
-  // Funções para o modal de Detalhes
   const handleOpenViewModal = (expense: Expense) => {
     setExpenseToView(expense);
     setIsViewModalOpen(true);
@@ -108,6 +144,9 @@ export default function HomePage() {
           monthlyTotal={monthlyTotal}
           numberOfTransactions={expenses.length}
         />
+
+        {/* MODIFICAÇÃO AQUI: Passando os eventos como prop */}
+        <DashboardCalendar events={calendarEvents} />
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-heading text-2xl font-bold text-foreground">
