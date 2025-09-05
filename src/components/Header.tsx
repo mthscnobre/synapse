@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutUser } from "@/lib/firebase/auth";
 import ThemeSwitcher from "./ThemeSwitcher";
+import NotificationToggle from "./NotificationToggle";
 import Image from "next/image";
 import Logo from "./Logo";
 import Link from "next/link";
+import { Button } from "@/components/ui/button"; // IMPORTAÇÃO ADICIONADA
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,11 +39,17 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-cabecalho-fundo py-4 px-8 border-b">
+    <header className="w-full bg-cabecalho-fundo py-3 px-4 md:px-8 border-b sticky top-0 z-50">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
-        <Logo variant="inverse" />
-        <div className="flex items-center gap-4">
-          <ThemeSwitcher />
+        <Logo />
+        <div className="flex items-center gap-2">
+          {user && (
+            <>
+              <NotificationToggle />
+              <ThemeSwitcher />
+            </>
+          )}
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
@@ -105,12 +113,12 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link
-              href="/login"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Entrar
-            </Link>
+            <>
+              <ThemeSwitcher />
+              <Button asChild>
+                <Link href="/login">Entrar</Link>
+              </Button>
+            </>
           )}
         </div>
       </div>

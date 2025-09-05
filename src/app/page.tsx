@@ -10,6 +10,7 @@ import ExpenseDetailModal from "@/components/ExpenseDetailModal";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotificationPermission } from "@/lib/hooks/useNotificationPermission";
 import {
   Expense,
   listenToExpenses,
@@ -25,7 +26,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addMonths, subMonths, format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// Interface para nossos eventos de calendário unificados
 export interface CalendarEvent {
   date: Date;
   title: string;
@@ -40,11 +40,9 @@ export default function HomePage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
 
-  // Estado para o modal de Adicionar/Editar
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
 
-  // Estado para o novo modal de Detalhes
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [expenseToView, setExpenseToView] = useState<Expense | null>(null);
 
@@ -96,6 +94,9 @@ export default function HomePage() {
     return events;
   }, [cards, bills, currentMonth]);
 
+  // Instancia o hook e passa os eventos para ele ativar a lógica de notificação.
+  useNotificationPermission(calendarEvents);
+
   const handleOpenAddModal = () => {
     setExpenseToEdit(null);
     setIsAddEditModalOpen(true);
@@ -145,7 +146,6 @@ export default function HomePage() {
           numberOfTransactions={expenses.length}
         />
 
-        {/* MODIFICAÇÃO AQUI: Passando os eventos como prop */}
         <DashboardCalendar events={calendarEvents} />
 
         <div className="flex items-center justify-between mb-4">
