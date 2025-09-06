@@ -8,7 +8,7 @@ import NotificationToggle from "./NotificationToggle";
 import Image from "next/image";
 import Logo from "./Logo";
 import Link from "next/link";
-import { Button } from "@/components/ui/button"; // IMPORTAÇÃO ADICIONADA
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,9 @@ import {
   LayoutGrid,
   FileText,
   CalendarClock,
+  PieChart,
+  LayoutDashboard,
+  History,
 } from "lucide-react";
 
 export default function Header() {
@@ -41,7 +44,7 @@ export default function Header() {
   return (
     <header className="w-full bg-cabecalho-fundo py-3 px-4 md:px-8 border-b sticky top-0 z-50">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
-        <Logo />
+        <Logo variant="inverse" />
         <div className="flex items-center gap-2">
           {user && (
             <>
@@ -79,27 +82,49 @@ export default function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/cards">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Meus Cartões</span>
+                  <Link href="/">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Dashboard (Início)</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/categories">
-                    <LayoutGrid className="mr-2 h-4 w-4" />
-                    <span>Minhas Categorias</span>
+                  <Link href="/history">
+                    <History className="mr-2 h-4 w-4" />
+                    <span>Histórico de Gastos</span>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/stats">
+                    <PieChart className="mr-2 h-4 w-4" />
+                    <span>Análises</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-normal px-2 py-1.5">
+                  Cadastros
+                </DropdownMenuLabel>
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/incomes">
                     <FileText className="mr-2 h-4 w-4" />
-                    <span>Minhas Entradas</span>
+                    <span>Entradas</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/bills">
                     <CalendarClock className="mr-2 h-4 w-4" />
                     <span>Contas a Pagar</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/cards">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Cartões</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/categories">
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    <span>Categorias</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
