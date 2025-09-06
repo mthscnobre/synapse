@@ -38,7 +38,6 @@ export default function AddEditCardModal({
   const [dueDay, setDueDay] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Novos estados para o upload de imagem
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,9 +49,8 @@ export default function AddEditCardModal({
         setLastFourDigits(cardToEdit.lastFourDigits);
         setClosingDay(String(cardToEdit.closingDay));
         setDueDay(String(cardToEdit.dueDay));
-        setImagePreview(cardToEdit.logoUrl || null); // Mostra o logo existente
+        setImagePreview(cardToEdit.logoUrl || null);
       } else {
-        // Reseta tudo para um novo cartão
         setName("");
         setLastFourDigits("");
         setClosingDay("");
@@ -61,7 +59,6 @@ export default function AddEditCardModal({
         setImagePreview(null);
       }
     } else {
-      // Limpa os estados de imagem ao fechar se não estiver salvando
       if (!isSaving) {
         setImageFile(null);
         setImagePreview(null);
@@ -101,7 +98,6 @@ export default function AddEditCardModal({
       let logoUrl = cardToEdit?.logoUrl || "";
       let storagePath = cardToEdit?.storagePath || "";
 
-      // 1. Salva ou atualiza os dados de texto primeiro
       const cardDetails = {
         name,
         lastFourDigits,
@@ -121,7 +117,6 @@ export default function AddEditCardModal({
 
       if (!cardId) throw new Error("Falha ao salvar os dados do cartão.");
 
-      // 2. Se uma NOVA imagem foi selecionada, faz o upload
       if (imageFile) {
         const storage = getFirebaseStorage();
         storagePath = `card-logos/${user.uid}/${cardId}/${imageFile.name}`;
@@ -131,13 +126,11 @@ export default function AddEditCardModal({
         logoUrl = await getDownloadURL(imageRef);
       }
 
-      // 3. Se não há nova imagem e a antiga foi removida
       if (!imagePreview && cardToEdit?.logoUrl) {
         logoUrl = "";
-        storagePath = ""; // Lógica de deleção do storage antigo será feita na função deleteCard
+        storagePath = "";
       }
 
-      // 4. Atualiza o cartão com a URL da imagem (se houver)
       await updateCard(cardId, { logoUrl, storagePath });
 
       toast.success(`Cartão "${name}" salvo com sucesso!`);
@@ -152,7 +145,7 @@ export default function AddEditCardModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={!isSaving ? onClose : undefined}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {cardToEdit ? "Editar Cartão" : "Adicionar Novo Cartão"}
@@ -169,7 +162,6 @@ export default function AddEditCardModal({
           }}
           className="grid gap-4 py-4"
         >
-          {/* Campo de Logo */}
           <div className="space-y-2">
             <Label>Logo do Cartão (Opcional)</Label>
             <div className="flex items-center gap-4">
@@ -216,7 +208,6 @@ export default function AddEditCardModal({
             </div>
           </div>
 
-          {/* Outros campos */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
               Apelido

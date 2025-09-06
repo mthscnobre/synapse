@@ -91,7 +91,6 @@ export default function AddExpenseModal({
 }: AddExpenseModalProps) {
   const { user } = useAuth();
 
-  // Estados do formulário
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -104,12 +103,10 @@ export default function AddExpenseModal({
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados do parcelamento
   const [isInstallment, setIsInstallment] = useState(false);
   const [totalAmount, setTotalAmount] = useState("");
   const [installments, setInstallments] = useState("");
 
-  // Estados para o Combobox de Categoria
   const [categories, setCategories] = useState<Category[]>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,11 +148,10 @@ export default function AddExpenseModal({
         setPaymentMethod(expenseToEdit.paymentMethod);
         setCardId(expenseToEdit.cardId);
         setNotes(expenseToEdit.notes || "");
-        setIsInstallment(false); // Modo de edição não permite alterar parcelamento por enquanto
+        setIsInstallment(false);
         setTotalAmount("");
         setInstallments("");
       } else {
-        // Reset para um novo gasto
         setAmount("");
         setDescription("");
         setCategory("");
@@ -173,7 +169,6 @@ export default function AddExpenseModal({
   }, [isOpen, expenseToEdit]);
 
   useEffect(() => {
-    // Desativa o parcelamento se o método de pagamento não for crédito
     if (paymentMethod !== "Crédito") {
       setIsInstallment(false);
     }
@@ -218,7 +213,7 @@ export default function AddExpenseModal({
         paymentMethod,
         cardId: cardId!,
         userId: user.uid,
-        createdAt: Timestamp.fromDate(date), // Esta será a data da compra
+        createdAt: Timestamp.fromDate(date),
         totalAmount: total,
         totalInstallments: numInstallments,
       };
@@ -248,7 +243,6 @@ export default function AddExpenseModal({
       };
 
       if (expenseToEdit) {
-        // Não permite transformar uma despesa única em parcelada na edição
         success = await updateExpense(expenseToEdit.id, expenseData);
       } else {
         const docId = await addExpense(expenseData);
@@ -284,7 +278,7 @@ export default function AddExpenseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {expenseToEdit ? "Editar Gasto" : "Adicionar Novo Gasto"}

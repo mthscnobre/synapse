@@ -10,25 +10,25 @@ import {
   Bill,
   listenToBills,
   Category,
-  listenToCategories, // Importe
+  listenToCategories,
   Card,
-  listenToCards, // Importe
+  listenToCards,
 } from "@/lib/firebase/firestore";
 import { PlusCircle } from "lucide-react";
 
 export default function BillsPage() {
   const { user } = useAuth();
   const [bills, setBills] = useState<Bill[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]); // Adicione estado
-  const [cards, setCards] = useState<Card[]>([]); // Adicione estado
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billToEdit, setBillToEdit] = useState<Bill | null>(null);
 
   useEffect(() => {
     if (user) {
       const unsubscribeBills = listenToBills(user.uid, setBills);
-      const unsubscribeCategories = listenToCategories(user.uid, setCategories); // Busque categorias
-      const unsubscribeCards = listenToCards(user.uid, setCards); // Busque cartões
+      const unsubscribeCategories = listenToCategories(user.uid, setCategories);
+      const unsubscribeCards = listenToCards(user.uid, setCards);
 
       return () => {
         unsubscribeBills();
@@ -71,15 +71,20 @@ export default function BillsPage() {
           </Button>
         </div>
 
-        <BillsList bills={bills} onEdit={handleEditBill} />
+        {/* CORREÇÃO: Passando as categorias para a lista */}
+        <BillsList
+          bills={bills}
+          onEdit={handleEditBill}
+          categories={categories}
+        />
       </section>
 
       <AddEditBillModal
         isOpen={isModalOpen}
         onClose={closeModal}
         billToEdit={billToEdit}
-        categories={categories} // Passe as categorias
-        cards={cards} // Passe os cartões
+        categories={categories}
+        cards={cards}
       />
     </AuthGuard>
   );

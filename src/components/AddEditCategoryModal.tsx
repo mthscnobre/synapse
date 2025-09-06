@@ -108,7 +108,7 @@ export default function AddEditCategoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={!isSaving ? onClose : undefined}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {categoryToEdit ? "Editar Categoria" : "Adicionar Nova Categoria"}

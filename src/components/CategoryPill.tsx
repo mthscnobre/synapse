@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 interface CategoryPillProps {
   category: string;
   color?: string;
+  small?: boolean;
 }
 
 const getTextColorForBackground = (bgColor: string): string => {
@@ -15,13 +16,14 @@ const getTextColorForBackground = (bgColor: string): string => {
   return luminance > 0.5 ? "text-black" : "text-white";
 };
 
-export function CategoryPill({ category, color }: CategoryPillProps) {
+export function CategoryPill({ category, color, small }: CategoryPillProps) {
   const textColorClass = getTextColorForBackground(color || "");
 
   return (
     <span
       className={cn(
-        "px-2 py-0.5 text-xs font-semibold rounded-full",
+        "font-semibold rounded-full",
+        small ? "px-1.5 py-0 text-[10px]" : "px-2 py-0.5 text-xs",
         !color && "bg-muted text-muted-foreground",
         color && textColorClass
       )}

@@ -41,7 +41,7 @@ export default function AddEditIncomeModal({
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");
-  const [payer, setPayer] = useState(""); // NOVO ESTADO
+  const [payer, setPayer] = useState("");
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isSaving, setIsSaving] = useState(false);
 
@@ -50,12 +50,12 @@ export default function AddEditIncomeModal({
       if (incomeToEdit) {
         setAmount(String(incomeToEdit.amount));
         setSource(incomeToEdit.source);
-        setPayer(incomeToEdit.payer || ""); // ATUALIZADO
+        setPayer(incomeToEdit.payer || "");
         setDate(incomeToEdit.createdAt.toDate());
       } else {
         setAmount("");
         setSource("");
-        setPayer(""); // ATUALIZADO
+        setPayer("");
         setDate(new Date());
       }
     }
@@ -73,7 +73,7 @@ export default function AddEditIncomeModal({
     const incomeData = {
       amount: parseFloat(amount),
       source,
-      payer, // ATUALIZADO
+      payer,
       createdAt: Timestamp.fromDate(date),
     };
 
@@ -101,7 +101,7 @@ export default function AddEditIncomeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={!isSaving ? onClose : undefined}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {incomeToEdit ? "Editar Entrada" : "Adicionar Nova Entrada"}
@@ -150,7 +150,6 @@ export default function AddEditIncomeModal({
               disabled={isSaving}
             />
           </div>
-          {/* NOVO CAMPO DE INPUT */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="payer" className="text-right">
               Pagador

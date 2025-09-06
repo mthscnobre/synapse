@@ -114,7 +114,6 @@ export default function AddEditBillModal({
       isAutomatic,
     };
 
-    // Adiciona os campos de pagamento apenas se for automático
     if (isAutomatic) {
       baseBillData.paymentMethod = paymentMethod;
       baseBillData.cardId = paymentMethod === "Crédito" ? cardId : "";
@@ -143,7 +142,7 @@ export default function AddEditBillModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={!isSaving ? onClose : undefined}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {billToEdit ? "Editar Conta" : "Adicionar Nova Conta"}
